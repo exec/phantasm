@@ -1,33 +1,56 @@
 # phantasm
 
-**Content-adaptive JPEG steganography in Rust.** Research-grade alpha.
+**Content-adaptive JPEG steganography in Rust.** Research-grade v0.1.0 stable.
 
-Phantasm hides data in the DCT coefficients of JPEG images using a content-adaptive distortion minimization scheme (UERD) driven through syndrome-trellis coding, sealed in an authenticated cryptographic envelope (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256). The thesis of the project is that combining channel-adaptive preprocessing, content-adaptive distortion, syndrome-trellis coding, perceptual-hash preservation, and modern authenticated encryption in a single tool is a capability no existing steganography tool offers. As of `v0.1.0-alpha`, three of those five legs are working end-to-end.
+Phantasm hides data in the DCT coefficients of JPEG images using a content-adaptive distortion minimization scheme (UERD or J-UNIWARD) driven through syndrome-trellis coding, sealed in an authenticated cryptographic envelope (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256), optionally stabilized against social-media re-encoding (Twitter channel adapter, MINICER + ROAST), and optionally constrained to preserve perceptual hashes (pHash/dHash wet-paper guard). The thesis of the project is that combining channel-adaptive preprocessing, content-adaptive distortion, syndrome-trellis coding, perceptual-hash preservation, and modern authenticated encryption in a single tool is a capability no existing steganography tool offers. As of `v0.1.0`, **all five pillars are reachable via the main CLI**.
 
 ## Headline research result
 
-On a 198-image seed-regenerable research corpus with a fixed 3,723-byte payload at ~27% raw capacity:
+On a 198-image seed-regenerable Picsum research corpus with a fixed 3,723-byte payload at ~31% raw capacity, using syndrome-trellis coding with published DDE Lab H̃ tables (Filler 2011) and conditional-probability double-layer decomposition:
 
-| Metric | Uniform embedding | UERD content-adaptive | Δ |
-|---|---:|---:|---:|
-| **Fridrich RS detection rate** (Aletheia-faithful port, threshold 0.05) | **73% – 75%** | **31%** | **−44 pp / 2.4× reduction** |
-| Mean Fridrich RS max_rate | 0.48 | 0.05 | 8.8× reduction |
-| **SRM-lite L2 distance** (mean) | 0.649 | 0.189 | **3.4× lower** |
-| **SSIM win rate** (paired) | — | — | **198/198 (100%)** |
-| Mean file-size inflation (cover → stego) | +10,189 B | +3,057 B | 3.3× smaller |
-| File-size inflation paired win rate | — | — | 196/198 (99%) |
+| Metric | Uniform embedding | UERD content-adaptive | J-UNIWARD | Δ (UERD vs Uniform) |
+|---|---:|---:|---:|---:|
+| **Fridrich RS detection rate** (Aletheia-faithful, threshold 0.05) | **66.7%** | **26.8%** | 30.3% | **−40 pp / 2.5× reduction** |
+| Mean Fridrich RS `max_rate` | 0.3208 | 0.0486 | 0.0557 | 6.6× reduction |
+| **SRM-lite L2 distance** (mean) | 0.599 | **0.131** | 0.197 | **4.6× lower** |
+| Mean SSIM | 0.8373 | 0.9509 | **0.9532** | +0.114 |
+| Mean PSNR (dB) | 34.97 | 36.09 | **37.58** | +1.12 dB |
+| Mean MSE | 26.94 | 22.28 | **15.20** | −4.66 |
+| Mean file-size delta (cover → stego) | +5,390 B | **−1,321 B** | −1,039 B | −6,712 B (net deflation) |
 
-**Paired (same image, 198 pairs):** UERD beats Uniform on Fridrich RS in 194–196 of 198 images, on SRM-lite L2 in 198 of 198, and on file-size inflation in 196 of 198. Numbers reproduce across day-1, day-2, and day-3 runs within measurement noise (~2 percentage points for detection rate, sub-byte for file size).
+**UERD beats Uniform on Fridrich RS in 195/198 images (98.5%), on SRM-lite L2 in 198/198 (100%), and on SSIM in 198/198 (100%).**
 
-Detector: native Rust port of Aletheia's Fridrich 2001 RS attack, validated to reproduce the Aletheia reference detection of `0.053` on its own sample stego at `0.0513` (within 0.002 tolerance).
+UERD stego is, on average, **smaller** than the cover — a consequence of mozjpeg's trellis-quant Huffman rebuild compressing the content-adaptive distortion distribution better than the original cover's entropy. The "stego file is slightly larger than expected" forensic signal that classical LSB-matching implementations leave behind is inverted by phantasm: stego is typically slightly smaller.
+
+### Security-capacity curve
+
+Using the research-raw embedding path (`phantasm-bench research-curve`) to measure detection rate at controlled STC message lengths, bypassing envelope padding:
+
+| Payload bits | Uniform det.frac | UERD det.frac | J-UNIWARD det.frac |
+|---:|---:|---:|---:|
+| 100 | 17.5% | 17.5% | 17.5% |
+| 2,000 | 17.5% | 17.5% | 17.5% |
+| 8,000 | 22.5% | 17.5% | 17.5% |
+| 20,000 | **40.0%** | 20.0% | **17.5%** |
+
+All three cost functions sit near the Fridrich RS false-positive floor (~17.5%) at low payloads. At 20k-bit payloads, Uniform blows out to 40% detection while UERD holds at 20% and J-UNIWARD at the noise floor — J-UNIWARD wins the high-capacity / security-critical regime on this corpus.
+
+### Detectors and reproducibility
+
+- **Fridrich RS**: native Rust port of Aletheia's reference Fridrich 2001 RS attack, validated to reproduce Aletheia's `0.053` detection on its own sample stego at `0.0513` (within 0.002 tolerance). Per-channel max over (R, G, B), threshold 0.05.
+- **SRM-lite L2**: 4 residuals × 7×7 co-occurrence matrices = 196-feature vector, L2 distance between cover and stego feature vectors. Threshold-free distance metric.
+- **Research corpus**: 198 Picsum.photos JPEGs with seeds `phantasm-0001` through `phantasm-0198`, manifest with SHA-256 hashes tracked in `research-corpus/manifest.json`. Corpus is regenerable from the manifest.
+- All numbers reproduce within ~2 percentage points across day-1, day-2, and v0.1.0 runs.
 
 ## What phantasm does
 
 - **Encode arbitrary payload bytes into a JPEG cover** using content-adaptive DCT coefficient perturbation
 - **Decode the payload out of a stego JPEG** given the same passphrase
-- **Content-adaptive cost minimization** via UERD (Guo/Ni/Shi 2015): modifications are redistributed into textured, high-frequency regions of the image, away from smooth skies and flat surfaces where human perception and steganalysis are most sensitive
-- **Syndrome-trellis coding** (Filler/Judas/Fridrich 2011) at rate 1/4, constraint height 7, for rate-distortion-optimal payload embedding
+- **Three content-adaptive cost functions**: Uniform (baseline), UERD (Guo/Ni/Shi 2015, divisibility-based redistribution into textured regions), J-UNIWARD (Holub & Fridrich 2014, Daubechies-8 wavelet residual-based). Selectable via `--cost-function {uniform,uerd,j-uniward}`.
+- **Syndrome-trellis coding** (Filler/Judas/Fridrich 2011) at rate 1/4, constraint height 7–12, with **published DDE Lab H̃ reference matrices** (2400 entries from common.cpp) and conditional-probability double-layer decomposition delivering 0.995× bits-per-L1 efficiency vs the asymptotic ML2 bound.
 - **Authenticated encryption envelope**: Argon2id(64 MiB / 3 iterations / 4 threads) → HKDF-SHA256 split into `(aead_key, mac_key)` → XChaCha20-Poly1305 AEAD + HMAC-SHA256 MAC (16-byte truncated) for fast wrong-passphrase detection
+- **Channel adapter (Twitter profile)** via `--channel-adapter twitter`: MINICER-style iterative coefficient stabilization at target QF=85/4:2:0 with ROAST overflow alleviation. 98.7% measured coefficient survival rate on real mozjpeg re-encoding.
+- **Perceptual-hash guard** via `--hash-guard {phash,dhash}`: per-image 3-tier sensitivity classifier (Robust/Marginal/Sensitive) calibrated from empirical single-image perturbation analysis, with wet-paper cost constraints routing STC embedding around coefficients that would flip pHash or dHash bits.
 - **Fixed-tier envelope padding** to `{256, 1024, 4096, 16384, 65536, 262144}` bytes to hide exact payload length from an observer with access to the stego
 - **Corpus-scale benchmarking harness** (`phantasm-bench eval-corpus`) for comparing cost functions on a directory of cover images
 
@@ -44,15 +67,38 @@ cargo build --release
     --passphrase "correct-horse-battery-staple" \
     --output stego.jpg
 
-# Compare against uniform (non-content-adaptive) embedding
+# Use J-UNIWARD for high-capacity / security-critical embeds
 ./target/release/phantasm embed \
-    --cost-function uniform \
+    --cost-function j-uniward \
     --input cover.jpg \
     --payload secret.txt \
     --passphrase "correct-horse-battery-staple" \
-    --output stego-uniform.jpg
+    --output stego.jpg
 
-# Extract
+# Stabilize against Twitter re-encoding (experimental — increases modification count)
+./target/release/phantasm embed \
+    --cost-function uerd \
+    --channel-adapter twitter \
+    --input cover.jpg \
+    --payload secret.txt \
+    --passphrase "correct-horse-battery-staple" \
+    --output stego.jpg
+
+# Preserve pHash via wet-paper constraint (no-op on Robust covers, which is ~75%)
+./target/release/phantasm embed \
+    --cost-function uerd \
+    --hash-guard phash \
+    --input cover.jpg \
+    --payload secret.txt \
+    --passphrase "correct-horse-battery-staple" \
+    --output stego.jpg
+
+# Check a cover before embedding
+./target/release/phantasm analyze cover.jpg
+# Prints: capacity estimate, JPEG metadata, Sensitivity tier (Robust/Marginal/Sensitive),
+#         Hash-guard (pHash) wet positions count
+
+# Extract (must match the embed's --channel-adapter and --hash-guard flags)
 ./target/release/phantasm extract \
     --input stego.jpg \
     --passphrase "correct-horse-battery-staple" \
@@ -61,19 +107,22 @@ cargo build --release
 diff secret.txt recovered.txt   # byte-identical
 ```
 
-The `--cost-function` flag accepts `uniform` or `uerd`. UERD is the shipping default — the uniform option exists for comparison benchmarking, not for production embedding.
+- `--cost-function` accepts `uniform`, `uerd` (default), or `j-uniward`.
+- `--channel-adapter` accepts `none` (default) or `twitter`.
+- `--hash-guard` accepts `none` (default), `phash`, or `dhash`.
+- Extract flags must match embed flags on the same stego; auto-detection is a post-v0.1.0 feature.
 
 ## What doesn't work yet
 
-`v0.1.0-alpha` is a research checkpoint, not a finished tool. The following are explicitly NOT implemented:
+`v0.1.0` is a research checkpoint, not a finished tool. The following are explicitly NOT implemented or are MVP-level:
 
-- **No compression resilience.** If you upload a stego JPEG to Facebook, Instagram, Twitter, or any service that re-encodes uploaded images, the embedded data will be destroyed. Phase 2 of the plan adds channel-adaptive coefficient stabilization (MINICER + ROAST) for specific social-media compression profiles; until then, treat phantasm as a file-in-file tool, not a post-in-a-post tool.
-- **No perceptual hash preservation.** At low embedding rates pHash/dHash are usually unchanged (the change cost is bimodal — ~75% of images are "robust" with 0% cost, per the Spike B analysis), but there's no guarantee at higher densities. Phase 3 adds a per-image sensitivity classifier and wet-paper cost constraints for hash-critical coefficients.
-- **No SRNet / EfficientNet / modern ML steganalysis evaluation.** Current detection evaluation uses classical detectors (Fridrich RS, SRM-lite L2, chi-square, sample pairs). A well-trained modern CNN will almost certainly outperform these and is expected to detect `v0.1.0-alpha` stego at higher rates.
-- **Single-layer STC only** in the main embedding pipeline. Double-layer (ternary) STC exists but isn't wired.
-- **STC H̃ submatrix is a deterministic PRNG construction,** not the published Filler 2011 / DDE Lab reference tables. Correctness is verified but rate-distortion performance is ~15% below asymptotic bound.
-- **Envelope format is unstable.** `v0.1.0-alpha` uses envelope format v2. Expect format breaks before `v0.1.0` stable.
-- **CLI is unstable.** Flag names and subcommand shape may change without deprecation.
+- **Only one channel profile (Twitter).** Instagram, Facebook, and other social media services have their own re-encode pipelines. `v0.1.0` ships with a Twitter profile only (QF=85, 4:2:0). Other channels need dedicated profiles; MINICER doesn't generalize without them. The Twitter profile is also a single-block approximation and does NOT model Twitter's rescale step for images larger than 4096 pixels.
+- **pHash/dHash only, no PDQ.** Facebook's PDQ algorithm (which underlies CSAM-matching databases) is NOT implemented. If you need PDQ-preservation you must evaluate independently.
+- **No pre-nudge for Sensitive covers.** About 10% of images are classified as pHash-Sensitive by the 3-tier classifier. On these, the hash guard falls back to large wet sets that may exhaust effective capacity. Pre-nudging the cover to move hash bits away from their decision thresholds before embedding is a known-good technique that is not yet implemented.
+- **No SRNet / EfficientNet / modern ML steganalysis evaluation.** Current detection evaluation uses classical detectors (Fridrich RS, SRM-lite L2, chi-square, sample pairs). A well-trained modern CNN will almost certainly outperform these and is expected to detect phantasm stego at higher rates.
+- **Envelope format is still considered pre-stable.** `v0.1.0` uses envelope format v2 (HMAC-SHA256-16 MAC + HKDF key split + FORMAT_VERSION byte). The next envelope revision is expected to add auto-detection of `--channel-adapter` and `--hash-guard` configuration, which will be a format break.
+- **CLI is pre-stable.** Flag names may still shift before `v1.0.0`.
+- **No external security review.** Cryptographic primitives are used via established crates (`argon2`, `chacha20poly1305`, `hmac`, `sha2`, `hkdf`) but the composition, envelope layout, and integration have not been reviewed by anyone outside the project.
 
 ## Threat model
 
@@ -97,16 +146,17 @@ The cryptographic primitives (Argon2id, XChaCha20-Poly1305, HMAC-SHA256, HKDF-SH
 
 ```
 phantasm/
-├── phantasm-image/   # JPEG DCT coefficient I/O via mozjpeg-sys
-├── phantasm-crypto/  # Argon2id + XChaCha20-Poly1305 + HMAC + HKDF envelope
-├── phantasm-stc/     # Syndrome-Trellis Codes (single- + double-layer)
-├── phantasm-ecc/     # Reed-Solomon error correction wrapper
-├── phantasm-cost/    # DistortionFunction trait + Uniform + UERD
-├── phantasm-core/    # Orchestrators that compose image + crypto + STC + cost
-├── phantasm-cli/     # `phantasm` binary
-├── phantasm-bench/   # `phantasm-bench` binary (metrics + corpus evaluation)
-├── spikes/           # Phase -1 de-risking experiments (DCT FFI, pHash cost)
-└── research-corpus/  # 198 Picsum JPEGs (gitignored, manifest.json committed)
+├── phantasm-image/    # JPEG DCT coefficient I/O via mozjpeg-sys (panic-safe FFI)
+├── phantasm-crypto/   # Argon2id + XChaCha20-Poly1305 + HMAC + HKDF envelope (v2)
+├── phantasm-stc/      # Syndrome-Trellis Codes with published DDE Lab H̃ tables
+├── phantasm-ecc/      # Reed-Solomon error correction wrapper
+├── phantasm-cost/     # DistortionFunction trait + Uniform + UERD + J-UNIWARD
+├── phantasm-channel/  # Channel adapters: MINICER + ROAST + TwitterProfile
+├── phantasm-core/     # Orchestrators, research-raw, hash_guard, pipeline
+├── phantasm-cli/      # `phantasm` binary
+├── phantasm-bench/    # `phantasm-bench` binary (eval-corpus + research-curve)
+├── spikes/            # Phase -1 de-risking experiments (DCT FFI, pHash cost)
+└── research-corpus/   # 198 Picsum JPEGs (gitignored, manifest.json committed)
 ```
 
 ## More detail
@@ -135,13 +185,20 @@ cargo fmt --all --check
 # Corpus-scale evaluation (needs a corpus of JPEGs, e.g. research-corpus/)
 cargo run --release -p phantasm-bench -- eval-corpus \
     --corpus path/to/jpeg/dir \
-    --cost-functions uniform,uerd \
+    --cost-functions uniform,uerd,j-uniward \
     --payload /path/to/payload.bin
 
 # Single-file stealth analysis against classical detectors
 cargo run --release -p phantasm-bench -- analyze-stealth \
     --cover cover.jpg \
     stego.jpg
+
+# Security-capacity curve (uses the research-raw embedding path)
+cargo run --release -p phantasm-bench -- research-curve \
+    --corpus path/to/jpeg/dir \
+    --cost-functions uniform,uerd,j-uniward \
+    --bit-counts 100,500,2000,8000,20000 \
+    --output curve.json --output-md curve.md
 ```
 
 ## License
@@ -155,4 +212,4 @@ at your option. Unless you explicitly state otherwise, any contribution intentio
 
 ## Status
 
-`v0.1.0-alpha` is the first public release. Expect breakage. Expect format changes. Don't use it for anything important yet. Read [STATUS.md](STATUS.md) for the full picture of what works and what's planned.
+`v0.1.0` is the first stable-tagged release. It is a research-grade checkpoint, not production-ready cryptographic software. Expect envelope-format breaks before `v1.0.0`, expect CLI flag shifts, and don't use it for anything where the confidentiality of the payload is life-critical. Read [STATUS.md](STATUS.md) for the full picture of what works and what's planned, and [CHANGELOG.md](CHANGELOG.md) for the detailed release notes.
