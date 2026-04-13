@@ -2,8 +2,6 @@
   <img src="phantasm.png" alt="phantasm" />
 </p>
 
-# phantasm
-
 **Content-adaptive JPEG steganography in Rust.** Research-grade v0.1.0 stable.
 
 Phantasm hides data in the DCT coefficients of JPEG images using a content-adaptive distortion minimization scheme (UERD or J-UNIWARD) driven through syndrome-trellis coding, sealed in an authenticated cryptographic envelope (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256), optionally stabilized against social-media re-encoding (Twitter channel adapter, MINICER + ROAST), and optionally constrained to preserve perceptual hashes (pHash/dHash wet-paper guard). The thesis of the project is that combining channel-adaptive preprocessing, content-adaptive distortion, syndrome-trellis coding, perceptual-hash preservation, and modern authenticated encryption in a single tool is a capability no existing steganography tool offers. As of `v0.1.0`, **all five pillars are reachable via the main CLI**.
