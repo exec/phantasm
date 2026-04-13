@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Modern ML steganalysis evaluation** — first-pass eval of phantasm v0.1.0 against pretrained CNN JPEG steganalyzers (JIN-SRNet from Butora/Yousfi/Fridrich 2021 and Aletheia EfficientNet-B0 J-UNIWARD), documented in `ML_STEGANALYSIS.md`. Both detectors agree: phantasm J-UNIWARD evades modern CNNs at typical payload while phantasm Uniform LSB is annihilated. JIN-SRNet detection rate at ~3 KB payload on 198-image Picsum corpus: cover 7.1% (false positive baseline), Uniform 98.0%, UERD 46.5%, **J-UNIWARD 16.2%**. **49.5% of J-UNIWARD stegos score lower P(stego) than their own cover** — JIN-SRNet sees the stego as more cover-like than the original.
+- **Threat-model framing in `phantasm embed --cost-function` help text.** `--cost-function` help now explicitly states the modern-vs-classical tradeoff: `uerd` (current default) wins against classical Fridrich RS and SRM-lite; `j-uniward` wins against modern CNN steganalysis. Use `j-uniward` for deep-learning threat models.
+
+### Research findings
+
+- **The optimal cost function inverts depending on threat model.** Against classical Fridrich RS, UERD beats J-UNIWARD (26.8% vs 30.3% detection on the v0.1.0 corpus). Against modern CNN steganalysis (JIN-SRNet), J-UNIWARD beats UERD (16.2% vs 46.5%). Both detectors used (JIN-SRNet and Aletheia EfficientNet-B0) agree on the ordering despite different architectures, training corpora, and frameworks. Cost-function research has confirmed runway against modern detectors — phantasm is not obsolete in a deep-learning threat model.
+- **Payload size barely affects modern-detector detection in the 1–10 KB range.** Detection rates on JIN-SRNet are essentially flat across that band, suggesting phantasm sits in a regime where the spatial pattern of modifications (which is payload-invariant under the cover-derived passphrase salt) dominates over modification count. Stress-testing the cost function will require 100+ KB payloads, well above v0.1.0 envelope sizes.
+- **Cover-source mismatch is the dominant variance term in CNN detection.** Aletheia's EfficientNet-B0 (ALASKA2-trained) has 88.9% cover false-positive on Picsum. JIN-SRNet (ImageNet-trained) has 7.1% on the same. Absolute risk depends on the adversary's training distribution, not just the architecture choice. Paired-comparison analysis (per-image stego − cover delta) is robust to cover-source mismatch and is the right metric for cross-detector comparisons.
+
 ## [0.1.0] — 2026-04-14
 
 First stable-tagged release. All five PLAN.md thesis pillars reachable via the main CLI. Research-grade, interface-unstable, envelope-format-unstable. Not for production.

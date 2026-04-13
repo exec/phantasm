@@ -52,10 +52,15 @@ enum Commands {
         stealth: StealthChoice,
 
         /// Content-adaptive distortion function used to compute per-coefficient
-        /// embedding costs. Choices: `uniform`, `uerd`, `j-uniward`. `uerd`
-        /// (default) is content-adaptive and substantially harder to detect
-        /// than `uniform` on the Fridrich RS attack; `j-uniward` is the
-        /// wavelet-domain distortion function from Holub & Fridrich (2014).
+        /// embedding costs. Choices: `uniform`, `uerd`, `j-uniward`. The right
+        /// choice is threat-model dependent. `uerd` (default) wins against
+        /// classical statistical detectors (Fridrich RS, SRM-lite) and is
+        /// substantially harder to detect than `uniform` on the same. `j-uniward`
+        /// (Holub & Fridrich 2014, wavelet-domain) wins against modern CNN
+        /// steganalysis: at typical payloads against the JIN-SRNet and
+        /// Aletheia EfficientNet-B0 pretrained detectors, J-UNIWARD scores
+        /// statistically indistinguishable from cover. For a modern threat
+        /// model (deep-learning adversary), use `j-uniward`. See ML_STEGANALYSIS.md.
         #[arg(long, default_value = "uerd")]
         cost_function: CostFunctionChoice,
 

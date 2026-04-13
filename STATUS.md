@@ -308,6 +308,35 @@ Detection battery in `analyze-stealth`:
 
 ## 5. Research Findings — What We've Proven So Far
 
+### Finding 9 (post-v0.1.0, 2026-04-13): Modern CNN steganalysis evaluation — cost-function ordering inverts vs classical detectors
+
+**This is the headline post-v0.1.0 result.** The full writeup lives in `ML_STEGANALYSIS.md`; this section captures the key numbers and the threat-model implication.
+
+Tested phantasm v0.1.0 at the default 3 KB payload (~0.2 bpnzac) on the same 198-image Picsum corpus, against two pretrained CNN detectors:
+
+1. **JIN-SRNet** (Butora/Yousfi/Fridrich 2021) — PyTorch SRNet with 3-channel color input, trained on ImageNet covers + J-UNIWARD stegos at 0.4–0.6 bpnzac. Run on RTX 5070 via PyTorch 2.10 + CUDA 12.8 at ~33 img/s.
+2. **Aletheia EfficientNet-B0 J-UNIWARD** (Daniel Lerch's open-source steganalysis toolkit) — Keras .h5, EfficientNet-B0 trained on ALASKA2 + J-UNIWARD. Converted to ONNX via tf2onnx and run via onnxruntime CPU at ~22 img/s.
+
+| Detector | Cover (FP) | Uniform | UERD | J-UNIWARD |
+|---|---:|---:|---:|---:|
+| **Fridrich RS** (classical, v0.1.0 Finding 8) | — | 66.7% | **26.8%** | 30.3% |
+| **JIN-SRNet** detection rate (P>0.5) | 7.1% | **98.0%** | 46.5% | **16.2%** |
+| **Aletheia EffNet-B0** paired Δ (mean stego−cover) | 88.9% baseline | +0.027 | −0.072 | **−0.113** |
+
+**Key finding — the cost-function ordering inverts.** Against classical Fridrich RS, UERD beats J-UNIWARD (26.8% vs 30.3%). Against modern JIN-SRNet, J-UNIWARD beats UERD (16.2% vs 46.5%) and **49.5% of phantasm J-UNIWARD stegos score lower P(stego) than their own cover** — JIN-SRNet sees the J-UNIWARD stego as more cover-like than the original, in half the pairs.
+
+**Cross-detector consistency:** EfficientNet-B0 has severe cover-source mismatch (88.9% cover false-positive on Picsum, because it was trained on ALASKA2), so its absolute detection rates are not interpretable. But the **paired** per-image (stego − cover) deltas are robust to cover-source bias and agree with JIN-SRNet: Uniform > UERD > J-UNIWARD in detectability. Two detectors with different architectures, training corpora, and frameworks both rank phantasm J-UNIWARD as the most cover-indistinguishable cost function.
+
+**Payload-size regime is flat.** Re-running JIN-SRNet across 1k / 3k / 6k / 10k byte payloads on the 66 1024-px covers showed essentially flat detection rates per cost function. Phantasm sits in a regime where the spatial pattern of STC modifications (cover-derived salt → same coefficient set hit regardless of payload size) dominates over modification count. Stress-testing the cost function would require 100+ KB payloads, well beyond v0.1.0 envelope sizes.
+
+**Threat-model implication:** The "right" cost function depends on the adversary. For classical statistical adversaries, UERD remains correct (and is still the v0.1.0 default). For deep-learning adversaries, **J-UNIWARD is the better choice and the v0.2 user-facing recommendation**. The CLI help text on `--cost-function` was updated to surface this tradeoff explicitly. The default has not been changed for v0.1.0 backward-compatibility; flipping the default is a candidate v0.2 behavior change.
+
+**Caveats** (full list in ML_STEGANALYSIS.md):
+- Both pretrained detectors were trained against J-UNIWARD specifically. A hypothetical UERD-trained CNN does not exist publicly. UERD numbers in this eval are cross-cost transfer, not direct. Closing this gap is the **Option B** v0.2 work item — fine-tune JIN-SRNet to a UERD-aware detector and re-run.
+- N=198, single corpus (Picsum), single passphrase per cover, ~0.2 bpnzac payload. Across-seed and cross-corpus variance not measured.
+- JIN-SRNet license is "research-use, conventional" per DDE Lab convention; not explicitly tagged. Verify before publishing eval numbers externally.
+- Aletheia ONNX path uses CPU inference (CUDA EP failed against the Blackwell 5070 — needs cuDNN 9.x + CUDA 12.x; tolerable since CPU still hits 22 img/s).
+
 ### Finding 8 (day 2 afternoon — v0.1.0 final bench): Post-STC-fix numbers improve across the board
 
 **This is the v0.1.0 shipping headline.** Supersedes Finding 7's day-2-morning numbers, which were measured on the pre-fix STC implementation.
