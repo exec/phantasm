@@ -118,6 +118,27 @@ pub fn classify_sensitivity(jpeg: &JpegCoefficients) -> SensitivityTier {
     classify_phash(&phash)
 }
 
+/// Computes the 64-bit pHash of a JPEG cover, returning it as 8 bytes.
+///
+/// The hash is derived from the same 32×32 area-resampled DCT that
+/// [`classify_sensitivity`] uses, so the bytes are stable under the same
+/// recompression class that pHash is designed to be robust to. Each bit
+/// is `1` iff its top-left 8×8 DCT coefficient is greater than the median
+/// of the 63 AC coefficients (the DC bit at index 0 follows the same
+/// comparison for uniformity). Bits are packed in row-major 8×8 order,
+/// MSB-first within each byte.
+pub fn compute_phash_bytes(jpeg: &JpegCoefficients) -> [u8; 8] {
+    let luma = decode_luma(jpeg);
+    let phash = compute_phash(&luma);
+    let mut bytes = [0u8; 8];
+    for i in 0..64 {
+        if phash.coeffs_8x8[i] > phash.median {
+            bytes[i / 8] |= 1 << (7 - (i % 8));
+        }
+    }
+    bytes
+}
+
 /// Extend `cost_map` with wet-paper positions (`cost = f64::INFINITY`) so the
 /// STC encoder routes around any JPEG coefficient whose perturbation could
 /// flip an at-risk hash bit. Robust covers receive zero wet positions.
@@ -947,5 +968,68 @@ mod tests {
         for c in &chosen {
             assert!(!wet.contains(c), "encoder picked a wet position: {c}");
         }
+    }
+
+    #[test]
+    fn compute_phash_bytes_deterministic_and_distinguishes_covers() {
+        let jpeg_a = synthetic_jpeg_textured(16, 16, |br, bc| {
+            let h = ((br * 31 + bc * 17) ^ 0x5A) as i16;
+            150 + (h % 80)
+        });
+        let jpeg_b = synthetic_jpeg_textured(16, 16, |br, bc| {
+            let h = ((br * 41 + bc * 23) ^ 0xA5) as i16;
+            150 + (h % 80)
+        });
+
+        let a1 = compute_phash_bytes(&jpeg_a);
+        let a2 = compute_phash_bytes(&jpeg_a);
+        assert_eq!(a1, a2, "same cover must produce identical pHash bytes");
+
+        let b1 = compute_phash_bytes(&jpeg_b);
+        assert_ne!(
+            a1, b1,
+            "distinct textured covers should yield distinct pHash bytes"
+        );
+    }
+
+    #[test]
+    fn compute_phash_bytes_real_fixture_is_eight_bytes_nonzero() {
+        use phantasm_image::jpeg;
+        let candidates = [
+            "../test.jpg",
+            "../../test.jpg",
+            "test.jpg",
+            "../research-corpus/qf85/512",
+        ];
+        for cand in candidates {
+            let p = std::path::Path::new(cand);
+            if p.is_file() {
+                let jc = jpeg::read(p).expect("fixture should decode");
+                let bytes = compute_phash_bytes(&jc);
+                assert_eq!(bytes.len(), 8);
+                assert!(
+                    bytes.iter().any(|&b| b != 0),
+                    "real cover pHash should not be all zero"
+                );
+                return;
+            }
+            if p.is_dir() {
+                for entry in std::fs::read_dir(p).unwrap().flatten() {
+                    let fp = entry.path();
+                    if fp.extension().and_then(|e| e.to_str()) == Some("jpg") {
+                        let jc = match jpeg::read(&fp) {
+                            Ok(j) => j,
+                            Err(_) => continue,
+                        };
+                        let bytes = compute_phash_bytes(&jc);
+                        assert_eq!(bytes.len(), 8);
+                        assert!(bytes.iter().any(|&b| b != 0));
+                        return;
+                    }
+                }
+            }
+        }
+        // No fixture checked out; the synthetic-cover checks above already
+        // exercise determinism and distinctness, so skip silently.
     }
 }

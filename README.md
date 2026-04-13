@@ -122,6 +122,7 @@ diff secret.txt recovered.txt   # byte-identical
 - **No SRNet / EfficientNet / modern ML steganalysis evaluation.** Current detection evaluation uses classical detectors (Fridrich RS, SRM-lite L2, chi-square, sample pairs). A well-trained modern CNN will almost certainly outperform these and is expected to detect phantasm stego at higher rates.
 - **Envelope format is still considered pre-stable.** `v0.1.0` uses envelope format v2 (HMAC-SHA256-16 MAC + HKDF key split + FORMAT_VERSION byte). The next envelope revision is expected to add auto-detection of `--channel-adapter` and `--hash-guard` configuration, which will be a format break.
 - **CLI is pre-stable.** Flag names may still shift before `v1.0.0`.
+- **JPEG covers only in `v0.1.0`.** Phantasm embeds in JPEG DCT coefficients via the content-adaptive cost path; PNG (or any other lossless format) is not accepted as an input cover. PNG support is scheduled for Phase 3 of the roadmap, which adds spatial-domain embedding with S-UNIWARD costs — see [PLAN.md](PLAN.md) §6 Phase 3. A PNG decode module exists in `phantasm-image` but is not wired into the embed pipeline in `v0.1.0`.
 - **No external security review.** Cryptographic primitives are used via established crates (`argon2`, `chacha20poly1305`, `hmac`, `sha2`, `hkdf`) but the composition, envelope layout, and integration have not been reviewed by anyone outside the project.
 
 ## Threat model

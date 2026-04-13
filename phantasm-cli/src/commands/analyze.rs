@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use phantasm_core::hash_guard::{apply_hash_guard, classify_sensitivity};
+use phantasm_core::hash_guard::{apply_hash_guard, classify_sensitivity, compute_phash_bytes};
 use phantasm_core::{ContentAdaptiveOrchestrator, CoverFormat, HashType, Orchestrator};
 use phantasm_cost::{DistortionFunction, Uniform};
 use phantasm_image::jpeg;
@@ -54,9 +54,16 @@ pub fn run(path: &Path, json: bool) -> Result<()> {
             "Hash-guard (pHash) wet positions: {} / {} ({:.2}% of capacity)",
             report.wet_positions_added, total, pct
         );
+
+        let phash = compute_phash_bytes(&jpeg);
+        let phash_hex = phash
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        println!("pHash:         {}", phash_hex);
     }
 
-    println!("Hash sensitivity:  {:?}", analysis.hash_sensitivity);
     println!("Channel robustness:");
     for compat in &analysis.channel_compatibility {
         let mark = if compat.compatible { "ok" } else { "x" };

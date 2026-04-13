@@ -117,7 +117,7 @@ enum Commands {
         path: PathBuf,
 
         /// Output as JSON instead of table
-        #[arg(long)]
+        #[arg(long, hide = true)]
         json: bool,
     },
 
