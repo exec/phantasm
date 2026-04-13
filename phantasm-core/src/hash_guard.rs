@@ -153,15 +153,15 @@ const ZIGZAG: [usize; 64] = [
 ];
 
 /// Decoded luma image: row-major, `width × height`, values in [0, 255].
-struct Luma {
-    pixels: Vec<f64>,
-    width: usize,
-    height: usize,
+pub(crate) struct Luma {
+    pub(crate) pixels: Vec<f64>,
+    pub(crate) width: usize,
+    pub(crate) height: usize,
 }
 
 /// Reconstruct the spatial luma channel from the JPEG component-0
 /// coefficients via dequantize + IDCT + level shift.
-fn decode_luma(jpeg: &JpegCoefficients) -> Luma {
+pub(crate) fn decode_luma(jpeg: &JpegCoefficients) -> Luma {
     let comp = &jpeg.components[0];
     let bw = comp.blocks_wide;
     let bh = comp.blocks_high;
@@ -220,7 +220,7 @@ fn decode_luma(jpeg: &JpegCoefficients) -> Luma {
 /// Area resampling is the standard choice for pHash-style downsampling
 /// because it suppresses high-frequency aliasing content that would
 /// otherwise leak into the small output and destabilize the median bit.
-fn resize_area(src: &Luma, out_w: usize, out_h: usize) -> Vec<f64> {
+pub(crate) fn resize_area(src: &Luma, out_w: usize, out_h: usize) -> Vec<f64> {
     let mut out = vec![0.0f64; out_w * out_h];
     if src.width == 0 || src.height == 0 || out_w == 0 || out_h == 0 {
         return out;
@@ -337,7 +337,7 @@ fn classify_phash(phash: &PHash) -> SensitivityTier {
 }
 
 /// 32×32 DCT-II, orthonormal (matches `phantasm-bench`'s pHash convention).
-fn dct2d_32x32(input: &[f64]) -> Vec<f64> {
+pub(crate) fn dct2d_32x32(input: &[f64]) -> Vec<f64> {
     const N: usize = 32;
     let mut tmp = vec![0.0f64; N * N];
     let mut out = vec![0.0f64; N * N];

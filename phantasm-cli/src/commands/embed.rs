@@ -6,7 +6,7 @@ use phantasm_core::{
     ChannelAdapter, ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity,
     HashType, Orchestrator, StealthTier, TwitterProfile,
 };
-use phantasm_cost::{DistortionFunction, Uerd, Uniform};
+use phantasm_cost::{DistortionFunction, Juniward, Uerd, Uniform};
 
 use crate::{
     ChannelAdapterChoice, ChannelChoice, CostFunctionChoice, HashGuardChoice, StealthChoice,
@@ -113,6 +113,7 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
     let distortion: Box<dyn DistortionFunction> = match cost_function {
         CostFunctionChoice::Uniform => Box::new(Uniform),
         CostFunctionChoice::Uerd => Box::new(Uerd),
+        CostFunctionChoice::Juniward => Box::new(Juniward),
     };
     let mut orchestrator = ContentAdaptiveOrchestrator::new(distortion);
 

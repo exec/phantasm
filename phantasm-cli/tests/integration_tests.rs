@@ -140,6 +140,11 @@ fn test_embed_roundtrip_default_is_uerd() {
 }
 
 #[test]
+fn test_embed_roundtrip_cost_function_juniward() {
+    roundtrip_with_cost_function(Some("j-uniward"));
+}
+
+#[test]
 fn test_help_lists_all_subcommands() {
     let mut cmd = Command::cargo_bin("phantasm").unwrap();
     cmd.arg("--help");

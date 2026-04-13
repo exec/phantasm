@@ -52,12 +52,23 @@ impl Orchestrator for ContentAdaptiveOrchestrator {
         let overhead = 100usize;
         let net_bytes = capacity_bytes.saturating_sub(overhead);
 
-        let tiers = vec![
-            (StealthTier::Max, net_bytes),
-            (StealthTier::High, net_bytes),
-            (StealthTier::Medium, net_bytes),
-            (StealthTier::Low, net_bytes),
+        // Heuristic per-tier capacity scaling. Pending empirical calibration
+        // against Fridrich's detectability curves; these fractions are
+        // placeholder values chosen to match PLAN.md §7's bpp ranges at
+        // typical photo densities. Do NOT take the numeric output as a
+        // calibrated detectability estimate — the embed path itself does not
+        // enforce the per-tier cap in v0.1.0, so the number reported here is
+        // purely informational until the calibration task lands in v0.2.
+        const TIER_CAPACITY_FRACTION: [(StealthTier, f64); 4] = [
+            (StealthTier::Max, 0.10),
+            (StealthTier::High, 0.30),
+            (StealthTier::Medium, 0.60),
+            (StealthTier::Low, 0.95),
         ];
+        let tiers: Vec<(StealthTier, usize)> = TIER_CAPACITY_FRACTION
+            .iter()
+            .map(|(tier, frac)| (*tier, ((net_bytes as f64) * frac) as usize))
+            .collect();
 
         let channel_compatibility = vec![
             ChannelCompatibility {

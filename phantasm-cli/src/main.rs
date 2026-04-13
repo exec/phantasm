@@ -52,8 +52,10 @@ enum Commands {
         stealth: StealthChoice,
 
         /// Content-adaptive distortion function used to compute per-coefficient
-        /// embedding costs. `uerd` (default) is content-adaptive and substantially
-        /// harder to detect than `uniform` on the Fridrich RS attack.
+        /// embedding costs. Choices: `uniform`, `uerd`, `j-uniward`. `uerd`
+        /// (default) is content-adaptive and substantially harder to detect
+        /// than `uniform` on the Fridrich RS attack; `j-uniward` is the
+        /// wavelet-domain distortion function from Holub & Fridrich (2014).
         #[arg(long, default_value = "uerd")]
         cost_function: CostFunctionChoice,
 
@@ -72,8 +74,10 @@ enum Commands {
         #[arg(long, default_value = "none")]
         hash_guard: HashGuardChoice,
 
-        /// Multi-layer payload (passphrase:path)
-        #[arg(long)]
+        /// Multi-layer payload (passphrase:path) — PLAN Phase 4, not yet
+        /// implemented. Hidden from `--help` in v0.1.0; still parses for
+        /// forward-compat with existing scripts.
+        #[arg(long, hide = true)]
         layer: Option<Vec<String>>,
     },
 
@@ -174,6 +178,8 @@ impl std::fmt::Display for ChannelChoice {
 enum CostFunctionChoice {
     Uniform,
     Uerd,
+    #[value(name = "j-uniward")]
+    Juniward,
 }
 
 impl std::fmt::Display for CostFunctionChoice {
@@ -181,6 +187,7 @@ impl std::fmt::Display for CostFunctionChoice {
         match self {
             Self::Uniform => write!(f, "uniform"),
             Self::Uerd => write!(f, "uerd"),
+            Self::Juniward => write!(f, "j-uniward"),
         }
     }
 }
