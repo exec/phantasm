@@ -256,7 +256,7 @@ fn now_iso8601() -> String {
 
 // ── Image discovery ───────────────────────────────────────────────────────────
 
-fn walk_jpeg_files(dir: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn walk_jpeg_files(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     for entry in walkdir::WalkDir::new(dir)
         .follow_links(false)
@@ -297,7 +297,7 @@ fn make_embed_plan() -> EmbedPlan {
     }
 }
 
-fn cost_fn_from_name(name: &str) -> Box<dyn DistortionFunction> {
+pub(crate) fn cost_fn_from_name(name: &str) -> Box<dyn DistortionFunction> {
     match name {
         "uerd" => Box::new(Uerd),
         "j-uniward" | "juniward" => Box::new(Juniward),

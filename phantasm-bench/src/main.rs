@@ -13,6 +13,7 @@ use phantasm_bench::metrics::{
     dhash_hamming, file_size_delta, mse, phash_hamming, psnr, ssim_grayscale,
 };
 use phantasm_bench::report::{BenchSummary, PairResult};
+use phantasm_bench::research_curve::{run_research_curve, ResearchCurveArgs};
 use phantasm_bench::stealth;
 use phantasm_bench::steganalyzer::{NullDetector, Steganalyzer};
 
@@ -66,6 +67,27 @@ enum Commands {
         markdown: Option<PathBuf>,
         #[arg(long, default_value = "1")]
         threads: usize,
+    },
+    /// Generate security-capacity curves via the research_raw embedding path.
+    ResearchCurve {
+        #[arg(long)]
+        corpus: PathBuf,
+        #[arg(long, default_value = "uniform,uerd,j-uniward", value_delimiter = ',')]
+        cost_functions: Vec<String>,
+        #[arg(long, value_delimiter = ',')]
+        bit_counts: Vec<usize>,
+        #[arg(long, default_value = "phantasm-curve-v1")]
+        seed_prefix: String,
+        #[arg(long)]
+        limit: Option<usize>,
+        #[arg(long, default_value = "0.05")]
+        threshold: f64,
+        #[arg(long, default_value = "1")]
+        threads: usize,
+        #[arg(long, default_value = "research-curve.json")]
+        output: PathBuf,
+        #[arg(long)]
+        output_md: Option<PathBuf>,
     },
 }
 
@@ -377,6 +399,40 @@ fn main() -> Result<()> {
             } else {
                 run_eval_corpus(&args)?;
             }
+        }
+        Commands::ResearchCurve {
+            corpus,
+            cost_functions,
+            bit_counts,
+            seed_prefix,
+            limit,
+            threshold,
+            threads,
+            output,
+            output_md,
+        } => {
+            if bit_counts.is_empty() {
+                anyhow::bail!("--bit-counts requires at least one value");
+            }
+            let args = ResearchCurveArgs {
+                corpus,
+                cost_functions,
+                bit_counts,
+                seed_prefix,
+                limit,
+                threshold,
+                threads,
+                output,
+                output_md,
+            };
+            let result = run_research_curve(&args)?;
+            println!(
+                "research-curve: {} images x {} cost fns x {} bit counts -> {} aggregates",
+                result.images_total,
+                result.cost_functions.len(),
+                result.bit_counts.len(),
+                result.aggregates.len(),
+            );
         }
     }
     Ok(())
