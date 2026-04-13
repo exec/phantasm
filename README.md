@@ -110,7 +110,7 @@ diff secret.txt recovered.txt   # byte-identical
 - `--cost-function` accepts `uniform`, `uerd` (default), or `j-uniward`.
 - `--channel-adapter` accepts `none` (default) or `twitter`.
 - `--hash-guard` accepts `none` (default), `phash`, or `dhash`.
-- Extract flags must match embed flags on the same stego; auto-detection is a post-v0.1.0 feature.
+- `phantasm extract` accepts `--channel-adapter` and `--hash-guard` flags for forward compatibility, but they are no-ops in `v0.1.0`: extract derives coefficient positions geometrically from the stego image (keyed on the passphrase + the pHash-stable image salt), and does not need to know which cost function, channel adapter, or hash-guard was used at embed time. Auto-detection metadata in the envelope is a post-v0.1.0 feature.
 
 ## What doesn't work yet
 
@@ -132,16 +132,16 @@ Phantasm is intended for scenarios where:
 1. You want to send a confidential payload over a channel that allows JPEG images but is untrusted (e.g., casual adversaries, automated scanners, content-inspection middleboxes).
 2. The adversary has access to the stego image and can run classical and statistical steganalysis on it.
 3. The adversary does NOT have access to the cover, nor to any out-of-band channel keyed to the sender/receiver.
-4. The adversary does NOT re-encode or compress the image in transit. (If they do, see "no compression resilience" above.)
+4. The adversary does NOT re-encode or compress the image in transit — **with the caveat that the Twitter channel adapter (`--channel-adapter twitter`) is a working MVP for one specific re-encode profile (QF=85, 4:2:0) at 98.7% measured coefficient survival.** Other channels (Facebook, Instagram, WhatsApp, etc.) destroy the embedded payload.
 
 Phantasm is NOT suitable for:
 
 - Defeating a well-resourced nation-state adversary running modern deep-learning steganalysis on your image
-- Defeating a service that re-encodes uploaded JPEGs (most social media)
+- Defeating services other than Twitter that re-encode uploaded JPEGs (Facebook, Instagram, WhatsApp, etc. need dedicated channel profiles that are not yet implemented)
 - Long-term archival where envelope-format stability matters
 - Any situation where the confidentiality of the payload is life-critical
 
-The cryptographic primitives (Argon2id, XChaCha20-Poly1305, HMAC-SHA256, HKDF-SHA256) are used via the established `argon2`, `chacha20poly1305`, `hmac`, `sha2`, and `hkdf` crates. The composition, key schedule, and envelope layout are project-specific and have NOT been externally reviewed. Do not treat `v0.1.0-alpha` as production-ready cryptography.
+The cryptographic primitives (Argon2id, XChaCha20-Poly1305, HMAC-SHA256, HKDF-SHA256) are used via the established `argon2`, `chacha20poly1305`, `hmac`, `sha2`, and `hkdf` crates. The composition, key schedule, and envelope layout are project-specific and have NOT been externally reviewed. Do not treat `v0.1.0` as production-ready cryptography.
 
 ## Project layout
 
