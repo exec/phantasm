@@ -532,6 +532,73 @@ fn test_dl_capacity_advantage() {
     );
 }
 
+// Test DL-5b: bits-per-L1 efficiency vs single-layer.
+//
+// With conditional-probability layering the double-layer construction should
+// achieve essentially the same bits-per-L1 ratio as single-layer at matched
+// rate (asymptotic bound = 1.0). The legacy independent-layer construction
+// achieved ~0.68. This test asserts ≥ 0.90, which is a comfortable lower
+// bound that catches any regression in the cost decomposition while leaving
+// headroom for finite-n / Viterbi quantization noise (h=10, n=4096 measured
+// at 0.99).
+#[test]
+fn test_dl_bits_per_l1_efficiency() {
+    let n = 4096;
+    let seeds = 30u64;
+    let h = 10u8;
+    let m_single = n / 8; // 512 bits, w=8
+    let m_double = 1024; // 2× single, valid for n=4096 (m1=512, m2=512)
+
+    let enc_single = StcEncoder::new(StcConfig {
+        constraint_height: h,
+    });
+    let enc_double = make_dl_encoder(h);
+
+    let mut tot_l1_s = 0.0f64;
+    let mut tot_l1_d = 0.0f64;
+    for seed in 0..seeds {
+        let mut rng = StdRng::seed_from_u64(seed + 60000);
+
+        let cover_i16: Vec<i16> = (0..n).map(|_| rng.gen_range(-500i16..=500)).collect();
+        let cover_bits: Vec<u8> = cover_i16.iter().map(|&x| x.rem_euclid(2) as u8).collect();
+        let costs = vec![1.0f64; n];
+
+        let msg_s: Vec<u8> = (0..m_single).map(|_| rng.gen_range(0u8..=1)).collect();
+        let stego_s = enc_single.embed(&cover_bits, &costs, &msg_s).unwrap();
+        let l1_s: f64 = cover_bits
+            .iter()
+            .zip(stego_s.iter())
+            .map(|(&a, &b)| if a != b { 1.0 } else { 0.0 })
+            .sum();
+        tot_l1_s += l1_s;
+
+        let cp = vec![1.0f64; n];
+        let cm = vec![1.0f64; n];
+        let msg_d: Vec<u8> = (0..m_double).map(|_| rng.gen_range(0u8..=1)).collect();
+        let stego_d = enc_double.embed(&cover_i16, &cp, &cm, &msg_d).unwrap();
+        let l1_d: f64 = cover_i16
+            .iter()
+            .zip(stego_d.iter())
+            .map(|(&a, &b)| (a - b).unsigned_abs() as f64)
+            .sum();
+        tot_l1_d += l1_d;
+    }
+
+    let avg_l1_s = tot_l1_s / seeds as f64;
+    let avg_l1_d = tot_l1_d / seeds as f64;
+    let bpl1_s = m_single as f64 / avg_l1_s;
+    let bpl1_d = m_double as f64 / avg_l1_d;
+    let ratio = bpl1_d / bpl1_s;
+
+    assert!(
+        ratio >= 0.90,
+        "double-layer bits/L1 efficiency {ratio:.3} below 0.90 \
+         (single bits/L1={bpl1_s:.3}, double bits/L1={bpl1_d:.3}, \
+         single avg L1={avg_l1_s:.1}, double avg L1={avg_l1_d:.1}) \
+         — conditional layering may have regressed"
+    );
+}
+
 // Test DL-6: extreme coefficient values — near i16 bounds, forbidden directions.
 #[test]
 fn test_dl_extreme_values() {

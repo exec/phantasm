@@ -2,41 +2,50 @@
 
 //! Double-layer STC for ternary embedding in DCT coefficients.
 //!
-//! Adaptation of Filler, Judas, Fridrich, IEEE TIFS 2011 §V.B for
-//! self-contained encode/decode without access to the original cover.
+//! Adaptation of Filler, Judas, Fridrich, IEEE TIFS 2011 §V.B. Two parity
+//! planes are extracted from each i16 coefficient's Euclidean mod-4 remainder
+//! and embedded with two coupled STC passes.
 //!
-//! ## Two-plane construction
+//! ## Two-plane decomposition
 //!
-//! Each i16 DCT coefficient `x` encodes two parity planes:
-//!   - Plane 0: `(x.unsigned_abs()) & 1`
-//!   - Plane 1: `(x.unsigned_abs() >> 1) & 1`
+//! For a coefficient `x`, let `r = x.rem_euclid(4) ∈ {0,1,2,3}`.
+//!   - Plane 0: `r & 1`         (LSB-1, carries `m1`)
+//!   - Plane 1: `(r >> 1) & 1`  (LSB-2, carries `m2`)
 //!
-//! Layer 1 (plane 0): embed m1 via ±1 adjustments.
-//! Layer 2 (plane 1): embed m2 via ±2 adjustments (which flip bit-1 of abs).
+//! Under floor modulo, ±1 always flips plane 0 and ±2 always flips plane 1
+//! — this is the invariant the paper relies on and is sign-independent
+//! (in contrast to the `|x|` convention, which aliases on sign crossings).
 //!
-//! A ±2 adjustment from value `x` changes `|x|` by 2 (for |x| > 0), which
-//! always flips bit-1 of the absolute value without touching bit-0. For x=0,
-//! ±2 gives |±2|=2, which has bit-0=0 (unchanged) and bit-1=1 (flipped).
+//! ## Conditional-probability layering
 //!
-//! The two planes are embedded independently by two separate STC passes;
-//! the decoder extracts each independently. This gives ~2× bit capacity
-//! for ~2× distortion vs single-layer, achieving the same bits/distortion
-//! efficiency. The advantage is that a single ternary coefficient can carry
-//! two bits (one per plane) where a binary coefficient carries one.
+//! Instead of embedding the two planes with independent STC costs (`min(cp,cm)`
+//! for layer 1 and `2·min(cp,cm)` for layer 2 — the legacy phantasm approach),
+//! we build a per-position 4-cell cost table `c[k] = min_Δ cost(Δ)` where Δ
+//! lands on mod-4 cell `k`, then embed in two coupled passes:
 //!
-//! ## Capacity advantage measurement
+//!   1. **Layer 2 (plane 1) with marginal cost**: STC pays
+//!      `c2[i] = min(c[k] where k>>1 = ¬cover_p1)` — the cheapest way to reach
+//!      *any* plane-0 representative of the flipped plane-1 cell.
+//!   2. **Layer 1 (plane 0) with conditional cost** given layer 2's choice:
+//!      let `nat_p0[i] = argmin_{p0} c[p0 + 2·target_p1[i]]` (the cheaper
+//!      plane-0 sibling inside the committed plane-1 cell). STC pays
+//!      `c1[i] = c[¬nat_p0 + 2·tp1] − c[nat_p0 + 2·tp1]` (≥ 0) to deviate.
 //!
-//! Double-layer embeds `m1 + m2` bits total with distortion
-//! `D1 + D2` (from two STC passes). Single-layer at the same rate embeds
-//! `m1` bits with distortion `D1`. So for the same _total_ distortion budget,
-//! double-layer embeds 2× the bits. At matched distortion (equal budget),
-//! the bits/distortion ratio is 2×.
+//! The key correctness claim: the total per-position cost paid by both STC
+//! passes *exactly equals* the actual cost of the final delta, because the
+//! cost table enumerates all 4 reachable mod-4 cells (Δ ∈ {−3..3} covers the
+//! full cycle). This is the optimal two-step decomposition of ML2; the only
+//! thing we still defer vs the full paper-standard ML2 is λ-tuned entropy
+//! allocation between m1 and m2 (currently we split by `div_ceil(2)`).
 //!
 //! ## Wet paper
 //!
-//! Layer-1 wet: `min(cp, cm) = ∞` (cannot change by ±1 in any direction).
-//! Layer-2 wet: position cannot be changed by ±2 in any feasible direction,
-//! OR both ±2 adjustments leave plane-1 unchanged (same parity result).
+//! - Fully wet position (cp = cm = ∞): `c[k] = ∞` for all k≠0, both layer
+//!   costs are ∞, STC keeps the cover bits; final delta is 0.
+//! - Half wet (cp or cm = ∞): `c[k]` populated only by the feasible direction;
+//!   the cheaper plane-0 sibling inside each plane-1 cell is still selected.
+//! - i16 saturation: deltas that would overflow `checked_add` are skipped,
+//!   so extreme coefficients are treated as partially wet automatically.
 
 use crate::encoder::{StcConfig, StcDecoder, StcEncoder};
 use crate::error::StcError;
@@ -49,86 +58,58 @@ pub struct DoubleLayerDecoder {
     pub config: StcConfig,
 }
 
-/// Compute plane-0 and plane-1 bits of the absolute value of x.
+/// Plane-0 and plane-1 bits under the Euclidean mod-4 convention.
 #[inline]
 fn planes(x: i16) -> (u8, u8) {
-    let a = x.unsigned_abs();
-    ((a & 1) as u8, ((a >> 1) & 1) as u8)
+    let r = x.rem_euclid(4) as u8;
+    (r & 1, (r >> 1) & 1)
 }
 
-/// Compute the cost to flip plane-1 at position i using a ±2 adjustment
-/// (which preserves plane-0). Searches ±2 moves only.
-///
-/// Returns `f64::INFINITY` if no feasible ±2 adjustment flips plane-1
-/// while preserving plane-0.
-fn layer2_cost(x: i16, cp: f64, cm: f64) -> f64 {
-    let (p0_orig, p1_orig) = planes(x);
-    let mut best = f64::INFINITY;
-
-    for &(d, c_unit) in &[(2i16, cp), (-2i16, cm)] {
-        let c = if d > 0 { cp } else { cm };
-        if c.is_infinite() {
-            continue;
-        }
-        if let Some(new_val) = x.checked_add(d) {
-            let (p0_new, p1_new) = planes(new_val);
-            if p0_new == p0_orig && p1_new != p1_orig {
-                let cost = c_unit.abs() * 2.0;
-                if cost < best {
-                    best = cost;
-                }
-            }
-        }
-    }
-
-    best
+/// Per-position mod-4 cost table: `cost[k]` and best delta to reach mod-4
+/// cell `k ∈ {0,1,2,3}` from cover `x`. Unreachable cells carry `f64::INFINITY`
+/// cost and delta 0.
+#[derive(Clone, Copy)]
+struct CellTable {
+    cost: [f64; 4],
+    delta: [i16; 4],
 }
 
-/// For a given cover value `x` and target planes `(tp0, tp1)`, find the
-/// delta ∈ {−3, −2, −1, 0, +1, +2, +3} with minimum cost that achieves the target.
-///
-/// The 4-cycle of plane values (0,0)→(1,0)→(0,1)→(1,1)→(0,0)... means that
-/// any (tp0, tp1) combination is reachable within ±3 of any starting value.
-fn find_delta(x: i16, tp0: u8, tp1: u8, cp: f64, cm: f64) -> (i16, f64) {
-    let (p0_orig, p1_orig) = planes(x);
+/// Enumerate Δ ∈ {-3,..,3}, populate `cost[k]` with the minimum achievable
+/// cost landing on mod-4 cell k and record the witness delta. Respects cp/cm
+/// wet-paper sentinels and i16 saturation.
+fn build_cell_table(x: i16, cp: f64, cm: f64) -> CellTable {
+    let mut cost = [f64::INFINITY; 4];
+    let mut delta = [0i16; 4];
 
-    // Early exit: no change needed.
-    if p0_orig == tp0 && p1_orig == tp1 {
-        return (0, 0.0);
-    }
-
-    let mut best: (i16, f64) = (0, f64::INFINITY);
-
-    for &d in &[-3i16, -2, -1, 0, 1, 2, 3] {
+    for &d in &[0i16, 1, -1, 2, -2, 3, -3] {
         let new_val = match x.checked_add(d) {
             Some(v) => v,
             None => continue,
         };
-        let (p0, p1) = planes(new_val);
-        if p0 != tp0 || p1 != tp1 {
-            continue;
-        }
-        let cost = match d.cmp(&0) {
+        let c = match d.cmp(&0) {
             std::cmp::Ordering::Equal => 0.0,
             std::cmp::Ordering::Greater => {
-                if cp.is_infinite() {
+                if !cp.is_finite() {
                     continue;
                 }
                 cp * (d as f64)
             }
             std::cmp::Ordering::Less => {
-                if cm.is_infinite() {
+                if !cm.is_finite() {
                     continue;
                 }
                 cm * (-d as f64)
             }
         };
-        if cost < best.1 {
-            best = (d, cost);
+        let (p0, p1) = planes(new_val);
+        let k = (p0 | (p1 << 1)) as usize;
+        if c < cost[k] {
+            cost[k] = c;
+            delta[k] = d;
         }
     }
 
-    best
+    CellTable { cost, delta }
 }
 
 impl DoubleLayerEncoder {
@@ -188,46 +169,77 @@ impl DoubleLayerEncoder {
             None
         };
 
-        // Extract current plane bits.
-        let plane0_cover: Vec<u8> = cover.iter().map(|&x| planes(x).0).collect();
-        let plane1_cover: Vec<u8> = cover.iter().map(|&x| planes(x).1).collect();
-
-        // Layer-1 cost: flipping plane-0 requires ±1 adjustment.
-        let cost1: Vec<f64> = (0..n).map(|i| costs_plus[i].min(costs_minus[i])).collect();
-
-        // Layer-2 cost: flipping plane-1 while preserving plane-0.
-        // Computed per-position using layer2_cost (uses ±2 moves only).
-        let cost2: Vec<f64> = (0..n)
-            .map(|i| layer2_cost(cover[i], costs_plus[i], costs_minus[i]))
+        // Per-position 4-cell cost table. This enumerates Δ ∈ {-3..3} once;
+        // everything below is a lookup.
+        let tables: Vec<CellTable> = (0..n)
+            .map(|i| build_cell_table(cover[i], costs_plus[i], costs_minus[i]))
             .collect();
 
-        let enc1 = StcEncoder::new(StcConfig {
-            constraint_height: self.config.constraint_height,
-        });
-        let target_p0 = enc1.embed(&plane0_cover, &cost1, m1)?;
+        // Cover plane-1 (layer-2 input bits).
+        let cover_p1: Vec<u8> = cover.iter().map(|&x| planes(x).1).collect();
 
+        // Layer-2 marginal cost: cheapest way to reach *any* representative
+        // of the flipped plane-1 cell. `min(c[0], c[2])` is the "stay" cost
+        // (which equals 0 via c[cover_k]) and `min(c[1|2·¬p1], c[2|2·¬p1])`
+        // is the "flip" cost. STC pays the difference.
+        let cost2: Vec<f64> = (0..n)
+            .map(|i| {
+                let cp1 = cover_p1[i] as usize;
+                let t = &tables[i].cost;
+                let stay = t[2 * cp1].min(t[1 + 2 * cp1]);
+                let flip = t[2 * (1 - cp1)].min(t[1 + 2 * (1 - cp1)]);
+                // `stay` is 0 at any feasible cover (Δ=0 is always free),
+                // so in practice flip - stay = flip. Subtracting defensively
+                // for any hypothetical cost model where Δ=0 isn't free.
+                flip - stay
+            })
+            .collect();
+
+        // Layer 2: embed m2 into plane-1 with marginal cost.
         let target_p1: Vec<u8> = if let Some(m2) = m2 {
             let enc2 = StcEncoder::new(StcConfig {
                 constraint_height: self.config.constraint_height,
             });
-            enc2.embed(&plane1_cover, &cost2, m2)?
+            enc2.embed(&cover_p1, &cost2, m2)?
         } else {
-            plane1_cover.clone()
+            cover_p1.clone()
         };
 
-        // Combine: find minimum-cost delta achieving (target_p0, target_p1).
+        // Layer 1 conditional: given the committed plane-1 target, pick the
+        // cheaper plane-0 sibling as the "natural" cover bit and let STC pay
+        // the marginal cost of swapping siblings.
+        let mut nat_p0 = vec![0u8; n];
+        let mut cost1 = vec![0.0f64; n];
+        for i in 0..n {
+            let tp1 = target_p1[i] as usize;
+            let t = &tables[i].cost;
+            let c0 = t[2 * tp1]; // plane0 = 0
+            let c1 = t[1 + 2 * tp1]; // plane0 = 1
+            if c0 <= c1 {
+                nat_p0[i] = 0;
+                cost1[i] = c1 - c0;
+            } else {
+                nat_p0[i] = 1;
+                cost1[i] = c0 - c1;
+            }
+        }
+
+        let enc1 = StcEncoder::new(StcConfig {
+            constraint_height: self.config.constraint_height,
+        });
+        let target_p0 = enc1.embed(&nat_p0, &cost1, m1)?;
+
+        // Compose final i16 deltas from the precomputed witness deltas.
         let mut result = cover.to_vec();
         for i in 0..n {
-            let tp0 = target_p0[i];
-            let tp1 = target_p1[i];
-
-            let (delta, cost) = find_delta(cover[i], tp0, tp1, costs_plus[i], costs_minus[i]);
-
-            if !cost.is_infinite() {
-                result[i] = cover[i].saturating_add(delta);
+            let k = (target_p0[i] | (target_p1[i] << 1)) as usize;
+            let cell_cost = tables[i].cost[k];
+            if cell_cost.is_finite() {
+                let d = tables[i].delta[k];
+                result[i] = cover[i].saturating_add(d);
             }
-            // If cost is infinite, the STC wet-paper constraints prevented feasible
-            // modification; cover[i] is unchanged (wet paper applied).
+            // Unreachable cell (only possible if STC was forced into a fully
+            // wet position whose syndrome already matched): leave cover[i].
         }
 
         Ok(result)
