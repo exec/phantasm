@@ -1,11 +1,12 @@
 mod aead;
 mod envelope;
 mod kdf;
+mod mac;
 mod metadata;
 mod padding;
 
 pub use aead::{decrypt, encrypt};
-pub use envelope::{open, seal, Envelope};
+pub use envelope::{open, seal, Envelope, FORMAT_VERSION};
 pub use kdf::{derive_key, derive_locations_key, KdfParams};
 pub use metadata::{ContentType, PayloadMetadata};
 pub use padding::{pad, unpad, BLOCK_SIZES};
@@ -18,6 +19,8 @@ pub enum CryptoError {
     AuthFailed,
     #[error("payload too large: exceeds maximum envelope size of 256 KiB")]
     PayloadTooLarge,
+    #[error("unsupported envelope format version: {0}")]
+    UnsupportedVersion(u8),
     #[error("invalid data: {0}")]
     InvalidData(String),
 }

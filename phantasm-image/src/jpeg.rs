@@ -1,13 +1,24 @@
 //! Safe wrapper around mozjpeg-sys DCT coefficient I/O.
 //!
 //! The write path re-opens the original source file to copy critical parameters
-//! (quant tables, Huffman tables, restart intervals, progressive/baseline mode).
-//! Markers (EXIF, ICC, etc.) are preserved via `jpeg_save_markers`.
+//! (quant tables, restart intervals, progressive/baseline mode). Huffman tables
+//! are re-optimized for the (possibly modified) coefficient distribution via
+//! `cinfo.optimize_coding = TRUE`. Markers (EXIF, ICC, etc.) are preserved via
+//! `jcopy_markers_setup` / `jcopy_markers_execute`.
+//!
+//! Fatal libjpeg errors are trapped by a custom `error_exit` callback that
+//! panics across the `C-unwind` ABI boundary; each public entry point wraps
+//! its unsafe body in `catch_unwind` and converts panics into
+//! `ImageError::LibjpegError(..)`. All libjpeg/libc resources use drop guards
+//! so unwinding still releases them.
 
 use crate::error::ImageError;
 use libc::FILE;
 use mozjpeg_sys::*;
+use std::any::Any;
+use std::cell::UnsafeCell;
 use std::ffi::CString;
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 
 pub struct JpegCoefficients {
@@ -52,36 +63,160 @@ impl JpegComponent {
 }
 
 // ---------------------------------------------------------------------------
-// Internal C FILE helpers
+// Panic-based error manager
 // ---------------------------------------------------------------------------
 
-unsafe fn fopen_read(path: &Path) -> Result<*mut FILE, ImageError> {
+/// Typed panic payload raised by our `error_exit` callback. We match on this
+/// in `catch_unwind` sites and convert it into `ImageError::LibjpegError`.
+struct LibjpegPanic(String);
+
+/// Custom `error_exit`: format the libjpeg message and panic across the
+/// `extern "C-unwind"` ABI. Every FFI entry point is wrapped in
+/// `catch_unwind`, so the panic is caught at the Rust boundary and turned
+/// into an `Err` — libjpeg never gets to call `exit()`.
+unsafe extern "C-unwind" fn rust_error_exit(cinfo: &mut jpeg_common_struct) {
+    // libjpeg's `format_message` writes up to 80 bytes (JMSG_LENGTH_MAX) through
+    // the buffer pointer. The upstream bindgen signature is marked "incorrect"
+    // (`&[u8; 80]` instead of `&mut`), so we back the buffer with `UnsafeCell`
+    // and hand out a shared ref — same underlying memory, no UB from writing
+    // through an immutable reference.
+    let cell: UnsafeCell<[u8; 80]> = UnsafeCell::new([0u8; 80]);
+    if let Some(fmt) = (*cinfo.err).format_message {
+        let buf_ref: &[u8; 80] = &*cell.get();
+        fmt(cinfo, buf_ref);
+    }
+    let buffer = *cell.get();
+    let nul = buffer.iter().position(|&b| b == 0).unwrap_or(buffer.len());
+    let msg = String::from_utf8_lossy(&buffer[..nul]).into_owned();
+    let msg = if msg.is_empty() {
+        format!("libjpeg fatal error (code {})", (*cinfo.err).msg_code)
+    } else {
+        msg
+    };
+    std::panic::panic_any(LibjpegPanic(msg));
+}
+
+/// Silence non-fatal warning/trace output so noisy corpora don't pollute stderr.
+unsafe extern "C-unwind" fn rust_output_message(_cinfo: &mut jpeg_common_struct) {}
+
+fn install_error_mgr(err: &mut jpeg_error_mgr) {
+    unsafe {
+        jpeg_std_error(err);
+    }
+    err.error_exit = Some(rust_error_exit);
+    err.output_message = Some(rust_output_message);
+}
+
+fn panic_to_error(payload: Box<dyn Any + Send>) -> ImageError {
+    if let Some(msg) = payload.downcast_ref::<LibjpegPanic>() {
+        ImageError::LibjpegError(msg.0.clone())
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        ImageError::FfiFailure(s.clone())
+    } else if let Some(s) = payload.downcast_ref::<&'static str>() {
+        ImageError::FfiFailure((*s).to_string())
+    } else {
+        ImageError::FfiFailure("unknown panic in libjpeg FFI".to_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RAII drop guards for libjpeg + libc resources
+// ---------------------------------------------------------------------------
+
+struct FileGuard(*mut FILE);
+
+impl FileGuard {
+    fn as_ptr(&self) -> *mut FILE {
+        self.0
+    }
+}
+
+impl Drop for FileGuard {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe {
+                libc::fclose(self.0);
+            }
+            self.0 = std::ptr::null_mut();
+        }
+    }
+}
+
+struct DecompressGuard {
+    cinfo: Box<jpeg_decompress_struct>,
+}
+
+impl DecompressGuard {
+    fn new(err: *mut jpeg_error_mgr) -> Self {
+        let mut cinfo: Box<jpeg_decompress_struct> = Box::new(unsafe { std::mem::zeroed() });
+        cinfo.common.err = err;
+        unsafe { jpeg_create_decompress(&mut *cinfo) };
+        Self { cinfo }
+    }
+}
+
+impl Drop for DecompressGuard {
+    fn drop(&mut self) {
+        unsafe {
+            // Safe to call in any state after `jpeg_create_decompress`; frees
+            // any partial allocations including when we unwind mid-decode.
+            jpeg_destroy_decompress(&mut self.cinfo);
+        }
+    }
+}
+
+struct CompressGuard {
+    cinfo: Box<jpeg_compress_struct>,
+}
+
+impl CompressGuard {
+    fn new(err: *mut jpeg_error_mgr) -> Self {
+        let mut cinfo: Box<jpeg_compress_struct> = Box::new(unsafe { std::mem::zeroed() });
+        cinfo.common.err = err;
+        unsafe { jpeg_create_compress(&mut *cinfo) };
+        Self { cinfo }
+    }
+}
+
+impl Drop for CompressGuard {
+    fn drop(&mut self) {
+        unsafe {
+            jpeg_destroy_compress(&mut self.cinfo);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// libc file helpers
+// ---------------------------------------------------------------------------
+
+fn open_read(path: &Path) -> Result<FileGuard, ImageError> {
     let s = CString::new(
         path.to_str()
             .ok_or_else(|| ImageError::InvalidFormat("non-UTF-8 path".to_string()))?,
     )
     .map_err(|e| ImageError::InvalidFormat(e.to_string()))?;
     let mode = CString::new("rb").unwrap();
-    let fp = libc::fopen(s.as_ptr(), mode.as_ptr());
+    let fp = unsafe { libc::fopen(s.as_ptr(), mode.as_ptr()) };
     if fp.is_null() {
         Err(ImageError::Io(std::io::Error::last_os_error()))
     } else {
-        Ok(fp)
+        Ok(FileGuard(fp))
     }
 }
 
-unsafe fn fopen_write(path: &Path) -> Result<*mut FILE, ImageError> {
+fn open_write(path: &Path) -> Result<FileGuard, ImageError> {
     let s = CString::new(
         path.to_str()
             .ok_or_else(|| ImageError::InvalidFormat("non-UTF-8 path".to_string()))?,
     )
     .map_err(|e| ImageError::InvalidFormat(e.to_string()))?;
     let mode = CString::new("wb").unwrap();
-    let fp = libc::fopen(s.as_ptr(), mode.as_ptr());
+    let fp = unsafe { libc::fopen(s.as_ptr(), mode.as_ptr()) };
     if fp.is_null() {
         Err(ImageError::Io(std::io::Error::last_os_error()))
     } else {
-        Ok(fp)
+        Ok(FileGuard(fp))
     }
 }
 
@@ -108,7 +243,6 @@ fn estimate_quality(quant: &[u16; 64]) -> u8 {
         72, 92, 95, 98, 112, 100, 103,  99,
     ];
 
-    // Compute ratio of provided table to QF=50 standard table.
     // libjpeg: if scale < 100 → QF = 50 + (50*(100-scale))/100
     //          if scale >= 100 → QF = 5000/scale
     let scale_sum: f64 = quant
@@ -130,41 +264,72 @@ fn estimate_quality(quant: &[u16; 64]) -> u8 {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Public API — every entry point is wrapped in `catch_unwind`
 // ---------------------------------------------------------------------------
 
 pub fn read(path: &Path) -> Result<JpegCoefficients, ImageError> {
-    unsafe { read_inner(path) }
+    match catch_unwind(AssertUnwindSafe(|| unsafe { read_inner(path) })) {
+        Ok(res) => res,
+        Err(payload) => Err(panic_to_error(payload)),
+    }
 }
 
 /// Write coefficients using the original source file to copy critical parameters.
 ///
-/// `source_path` must be the original JPEG file that was read to produce `coefficients`.
-/// The file must still exist. `dest_path` is the output file.
+/// `source_path` must be the original JPEG file that was read to produce
+/// `coefficients`. The file must still exist. `dest_path` is the output file.
+///
+/// Huffman tables are re-optimized from the modified coefficient histogram
+/// (`cinfo.optimize_coding = TRUE`), so file-size inflation from embedding is
+/// kept near zero.
 pub fn write_with_source(
     coefficients: &JpegCoefficients,
     source_path: &Path,
     dest_path: &Path,
 ) -> Result<(), ImageError> {
-    unsafe { write_with_source_inner(coefficients, source_path, dest_path) }
+    write_with_source_opts(coefficients, source_path, dest_path, true)
 }
 
+/// Lower-level variant that lets the caller disable Huffman re-optimization.
+///
+/// Production callers should use [`write_with_source`]; this hook exists so
+/// benchmarks and research harnesses can measure the effect of re-optimization
+/// directly.
+pub fn write_with_source_opts(
+    coefficients: &JpegCoefficients,
+    source_path: &Path,
+    dest_path: &Path,
+    optimize_huffman: bool,
+) -> Result<(), ImageError> {
+    match catch_unwind(AssertUnwindSafe(|| unsafe {
+        write_with_source_inner(coefficients, source_path, dest_path, optimize_huffman)
+    })) {
+        Ok(res) => res,
+        Err(payload) => Err(panic_to_error(payload)),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unsafe implementations (always reached through catch_unwind)
+// ---------------------------------------------------------------------------
+
 unsafe fn read_inner(path: &Path) -> Result<JpegCoefficients, ImageError> {
-    let fp = fopen_read(path)?;
+    let fp = open_read(path)?;
 
     let mut err: jpeg_error_mgr = std::mem::zeroed();
-    let mut cinfo: jpeg_decompress_struct = std::mem::zeroed();
-    cinfo.common.err = jpeg_std_error(&mut err);
-    jpeg_create_decompress(&mut cinfo);
-    jpeg_stdio_src(&mut cinfo, fp);
+    install_error_mgr(&mut err);
+
+    let mut dec = DecompressGuard::new(&mut err);
+    let cinfo: &mut jpeg_decompress_struct = &mut dec.cinfo;
+    jpeg_stdio_src(cinfo, fp.as_ptr());
 
     // Save all APP and COM markers so we can copy them out.
     for marker in 0u32..15 {
-        jpeg_save_markers(&mut cinfo, (0xe0 + marker) as i32, 0xffff);
+        jpeg_save_markers(cinfo, (0xe0 + marker) as i32, 0xffff);
     }
-    jpeg_save_markers(&mut cinfo, 0xfe, 0xffff); // COM marker
+    jpeg_save_markers(cinfo, 0xfe, 0xffff); // COM marker
 
-    jpeg_read_header(&mut cinfo, true as _);
+    jpeg_read_header(cinfo, true as _);
 
     let width = cinfo.image_width;
     let height = cinfo.image_height;
@@ -184,7 +349,7 @@ unsafe fn read_inner(path: &Path) -> Result<JpegCoefficients, ImageError> {
         marker_ptr = m.next;
     }
 
-    let coef_arrays = jpeg_read_coefficients(&mut cinfo);
+    let coef_arrays = jpeg_read_coefficients(cinfo);
     let comp_info_slice = std::slice::from_raw_parts(cinfo.comp_info, num_components);
 
     let mut components = Vec::with_capacity(num_components);
@@ -211,7 +376,6 @@ unsafe fn read_inner(path: &Path) -> Result<JpegCoefficients, ImageError> {
             }
         }
 
-        // Extract quantization table for this component.
         let mut quant_table = [1u16; 64];
         if !comp.quant_table.is_null() {
             let qt = &*comp.quant_table;
@@ -235,9 +399,10 @@ unsafe fn read_inner(path: &Path) -> Result<JpegCoefficients, ImageError> {
         None
     };
 
-    jpeg_finish_decompress(&mut cinfo);
-    jpeg_destroy_decompress(&mut cinfo);
-    libc::fclose(fp);
+    jpeg_finish_decompress(cinfo);
+    // `dec` + `fp` drop at end of scope → destroy_decompress + fclose.
+    drop(dec);
+    drop(fp);
 
     Ok(JpegCoefficients {
         components,
@@ -252,27 +417,21 @@ unsafe fn write_with_source_inner(
     jc: &JpegCoefficients,
     source_path: &Path,
     dest_path: &Path,
+    optimize_huffman: bool,
 ) -> Result<(), ImageError> {
-    let src_fp = fopen_read(source_path)?;
-    let dst_fp = match fopen_write(dest_path) {
-        Ok(fp) => fp,
-        Err(e) => {
-            libc::fclose(src_fp);
-            return Err(e);
-        }
-    };
+    let src_fp = open_read(source_path)?;
+    let dst_fp = open_write(dest_path)?;
 
     let mut src_err: jpeg_error_mgr = std::mem::zeroed();
-    let mut src_cinfo: jpeg_decompress_struct = std::mem::zeroed();
-    src_cinfo.common.err = jpeg_std_error(&mut src_err);
-    jpeg_create_decompress(&mut src_cinfo);
-    jpeg_stdio_src(&mut src_cinfo, src_fp);
+    install_error_mgr(&mut src_err);
+    let mut src_dec = DecompressGuard::new(&mut src_err);
+    let src_cinfo: &mut jpeg_decompress_struct = &mut src_dec.cinfo;
+    jpeg_stdio_src(src_cinfo, src_fp.as_ptr());
 
-    // Set up marker saving so jcopy_markers_execute can replay them into the output.
-    jcopy_markers_setup(&mut src_cinfo, JCOPY_OPTION_JCOPYOPT_ALL);
+    jcopy_markers_setup(src_cinfo, JCOPY_OPTION_JCOPYOPT_ALL);
 
-    jpeg_read_header(&mut src_cinfo, true as _);
-    let orig_coef_arrays = jpeg_read_coefficients(&mut src_cinfo);
+    jpeg_read_header(src_cinfo, true as _);
+    let orig_coef_arrays = jpeg_read_coefficients(src_cinfo);
 
     let num_components = src_cinfo.num_components as usize;
     let comp_info_slice = std::slice::from_raw_parts(src_cinfo.comp_info, num_components);
@@ -304,23 +463,29 @@ unsafe fn write_with_source_inner(
     }
 
     let mut dst_err: jpeg_error_mgr = std::mem::zeroed();
-    let mut dst_cinfo: jpeg_compress_struct = std::mem::zeroed();
-    dst_cinfo.common.err = jpeg_std_error(&mut dst_err);
-    jpeg_create_compress(&mut dst_cinfo);
-    jpeg_stdio_dest(&mut dst_cinfo, dst_fp);
+    install_error_mgr(&mut dst_err);
+    let mut dst_enc = CompressGuard::new(&mut dst_err);
+    let dst_cinfo: &mut jpeg_compress_struct = &mut dst_enc.cinfo;
+    jpeg_stdio_dest(dst_cinfo, dst_fp.as_ptr());
 
-    jpeg_copy_critical_parameters(&src_cinfo, &mut dst_cinfo);
-    jpeg_write_coefficients(&mut dst_cinfo, orig_coef_arrays);
-    // Copy APP/COM markers after the compressor has started.
-    jcopy_markers_execute(&mut src_cinfo, &mut dst_cinfo, JCOPY_OPTION_JCOPYOPT_ALL);
-    jpeg_finish_compress(&mut dst_cinfo);
-    jpeg_destroy_compress(&mut dst_cinfo);
+    jpeg_copy_critical_parameters(src_cinfo, dst_cinfo);
 
-    jpeg_finish_decompress(&mut src_cinfo);
-    jpeg_destroy_decompress(&mut src_cinfo);
+    // Re-optimize Huffman tables against the (possibly modified) coefficient
+    // distribution. `jpeg_copy_critical_parameters` copies quant tables but
+    // leaves Huffman tables untouched; with `optimize_coding = TRUE` libjpeg
+    // builds fresh optimal tables during `jpeg_write_coefficients`.
+    dst_cinfo.optimize_coding = if optimize_huffman { 1 } else { 0 } as boolean;
 
-    libc::fclose(src_fp);
-    libc::fclose(dst_fp);
+    jpeg_write_coefficients(dst_cinfo, orig_coef_arrays);
+    jcopy_markers_execute(src_cinfo, dst_cinfo, JCOPY_OPTION_JCOPYOPT_ALL);
+    jpeg_finish_compress(dst_cinfo);
+
+    jpeg_finish_decompress(src_cinfo);
+
+    drop(dst_enc);
+    drop(src_dec);
+    drop(dst_fp);
+    drop(src_fp);
 
     Ok(())
 }

@@ -74,6 +74,9 @@ pub struct PerImageMetrics {
     pub histogram_tv: f64,
     pub nonzero_ac_delta: Option<i64>,
     pub overall_verdict_detected: bool,
+    pub fridrich_rs_max_rate: f64,
+    pub fridrich_rs_detected: bool,
+    pub srm_lite_l2_distance: f64,
     pub embed_ms: f64,
     pub capacity_used_ratio: f64,
 }
@@ -152,6 +155,7 @@ pub struct CostFunctionStats {
     pub skipped_reasons: HashMap<String, usize>,
     pub metrics: HashMap<String, DistStats>,
     pub overall_verdict_detected_fraction: f64,
+    pub fridrich_rs_detected_fraction: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -386,6 +390,9 @@ fn process_one_image(
         analyze_stealth(&stego_path, Some(cover_path), 0.05).map_err(|e| e.to_string())?;
 
     let detected = stealth.overall_verdict == "detected";
+    let fridrich_rs_max_rate = stealth.fridrich_rs.max_rate;
+    let fridrich_rs_detected = fridrich_rs_max_rate > 0.05;
+    let srm_lite_l2_distance = stealth.srm_lite.l2_distance.unwrap_or(0.0);
 
     Ok(PerImageMetrics {
         mse: mse_val,
@@ -401,6 +408,9 @@ fn process_one_image(
         histogram_tv: stealth.y_component.histogram_tv,
         nonzero_ac_delta: stealth.y_component.nonzero_ac_delta,
         overall_verdict_detected: detected,
+        fridrich_rs_max_rate,
+        fridrich_rs_detected,
+        srm_lite_l2_distance,
         embed_ms,
         capacity_used_ratio: embed_result.capacity_used_ratio,
     })
@@ -459,6 +469,14 @@ fn aggregate_metrics(results: &[PerImageMetrics]) -> HashMap<String, DistStats> 
         "capacity_used_ratio",
         results.iter().map(|r| r.capacity_used_ratio).collect()
     );
+    agg!(
+        "fridrich_rs_max_rate",
+        results.iter().map(|r| r.fridrich_rs_max_rate).collect()
+    );
+    agg!(
+        "srm_lite_l2_distance",
+        results.iter().map(|r| r.srm_lite_l2_distance).collect()
+    );
 
     map
 }
@@ -475,6 +493,8 @@ fn uerd_wins(metric: &str, uniform_val: f64, uerd_val: f64) -> bool {
             | "pm1_transition_ratio"
             | "histogram_tv"
             | "embed_ms"
+            | "fridrich_rs_max_rate"
+            | "srm_lite_l2_distance"
     );
     if metric == "nonzero_ac_delta" {
         return uerd_val.abs() < uniform_val.abs();
@@ -534,6 +554,16 @@ fn compute_paired_comparison(
                 "capacity_used_ratio",
                 u_m.capacity_used_ratio,
                 e_m.capacity_used_ratio
+            );
+            pair!(
+                "fridrich_rs_max_rate",
+                u_m.fridrich_rs_max_rate,
+                e_m.fridrich_rs_max_rate
+            );
+            pair!(
+                "srm_lite_l2_distance",
+                u_m.srm_lite_l2_distance,
+                e_m.srm_lite_l2_distance
             );
             if let (Some(uv), Some(ev)) = (u_m.nonzero_ac_delta, e_m.nonzero_ac_delta) {
                 pair!("nonzero_ac_delta", uv as f64, ev as f64);
@@ -602,6 +632,8 @@ fn build_markdown(result: &EvalCorpusResult) -> String {
         "file_size_delta",
         "rs_rate_y",
         "spa_rate_y",
+        "fridrich_rs_max_rate",
+        "srm_lite_l2_distance",
         "pm1_transition_ratio",
         "lsb_entropy",
         "histogram_tv",
@@ -688,9 +720,30 @@ fn build_markdown(result: &EvalCorpusResult) -> String {
         result.per_cost_function.get("uerd"),
     ) {
         md.push_str(&format!(
-            "- Detection rate: uniform={:.1}%, uerd={:.1}%\n",
+            "- Detection rate (overall): uniform={:.1}%, uerd={:.1}%\n",
             u.overall_verdict_detected_fraction * 100.0,
             e.overall_verdict_detected_fraction * 100.0
+        ));
+        md.push_str(&format!(
+            "- Fridrich-RS detection (max_rate > 0.05): uniform={:.1}%, uerd={:.1}%\n",
+            u.fridrich_rs_detected_fraction * 100.0,
+            e.fridrich_rs_detected_fraction * 100.0
+        ));
+    }
+    if let Some(pc) = result.paired_comparison.get("fridrich_rs_max_rate") {
+        md.push_str(&format!(
+            "- Fridrich-RS max_rate: UERD wins in **{:.1}%** of images (mean delta: {:+.4}, median delta: {:+.4})\n",
+            pc.win_rate_uerd * 100.0,
+            pc.mean_paired_delta,
+            pc.median_paired_delta
+        ));
+    }
+    if let Some(pc) = result.paired_comparison.get("srm_lite_l2_distance") {
+        md.push_str(&format!(
+            "- SRM-lite L2 distance: UERD wins in **{:.1}%** of images (mean delta: {:+.4}, median delta: {:+.4})\n",
+            pc.win_rate_uerd * 100.0,
+            pc.mean_paired_delta,
+            pc.median_paired_delta
         ));
     }
 
@@ -834,18 +887,11 @@ fn build_sweep_markdown(sweep: &DensitySweepResult, corpus_image_count: usize) -
         * 100.0;
 
     // Check if UERD detection drops below 100% at any VALID density (skip zero-data rows)
-    let uerd_evasion = valid_indices
-        .iter()
-        .copied()
-        .find_map(|i| {
-            sm.detection_rate_uerd.get(i).and_then(|&r| {
-                if r < 1.0 {
-                    Some((i, r))
-                } else {
-                    None
-                }
-            })
-        });
+    let uerd_evasion = valid_indices.iter().copied().find_map(|i| {
+        sm.detection_rate_uerd
+            .get(i)
+            .and_then(|&r| if r < 1.0 { Some((i, r)) } else { None })
+    });
 
     let mut takeaway = format!(
         "UERD's SSIM advantage is largest at {:.0}% payload density (win rate {:.1}%). ",
@@ -860,8 +906,16 @@ fn build_sweep_markdown(sweep: &DensitySweepResult, corpus_image_count: usize) -
     // Check whether advantage shrinks across valid densities
     let first_valid = *valid_indices.first().unwrap();
     let last_valid = *valid_indices.last().unwrap();
-    let first_rate = sm.ssim_uerd_win_rate.get(first_valid).copied().unwrap_or(0.0);
-    let last_rate = sm.ssim_uerd_win_rate.get(last_valid).copied().unwrap_or(0.0);
+    let first_rate = sm
+        .ssim_uerd_win_rate
+        .get(first_valid)
+        .copied()
+        .unwrap_or(0.0);
+    let last_rate = sm
+        .ssim_uerd_win_rate
+        .get(last_valid)
+        .copied()
+        .unwrap_or(0.0);
     if last_rate < first_rate {
         let last_frac_pct = sweep.fractions.get(last_valid).copied().unwrap_or(0.0) * 100.0;
         takeaway.push_str(&format!(
@@ -888,10 +942,19 @@ fn build_sweep_markdown(sweep: &DensitySweepResult, corpus_image_count: usize) -
     let skipped: Vec<f64> = sweep
         .runs
         .iter()
-        .filter_map(|r| if run_is_empty(r) { Some(r.fraction) } else { None })
+        .filter_map(|r| {
+            if run_is_empty(r) {
+                Some(r.fraction)
+            } else {
+                None
+            }
+        })
         .collect();
     if !skipped.is_empty() {
-        let skipped_pct: Vec<String> = skipped.iter().map(|f| format!("{:.0}%", f * 100.0)).collect();
+        let skipped_pct: Vec<String> = skipped
+            .iter()
+            .map(|f| format!("{:.0}%", f * 100.0))
+            .collect();
         takeaway.push_str(&format!(
             "\n\n**Skipped densities:** {} — every image at these fractions hit `PayloadTooLarge`. These rows are omitted from the analysis above.",
             skipped_pct.join(", "),
@@ -1036,6 +1099,12 @@ fn run_single_density(
         } else {
             0.0
         };
+        let fridrich_detected_count = results.iter().filter(|r| r.fridrich_rs_detected).count();
+        let fridrich_rs_detected_fraction = if count > 0 {
+            fridrich_detected_count as f64 / count as f64
+        } else {
+            0.0
+        };
         let metrics = aggregate_metrics(&results);
 
         per_cost_function.insert(
@@ -1046,6 +1115,7 @@ fn run_single_density(
                 skipped_reasons: cf_skip_reasons.get(cf_name).unwrap().clone(),
                 metrics,
                 overall_verdict_detected_fraction: detected_fraction,
+                fridrich_rs_detected_fraction,
             },
         );
     }

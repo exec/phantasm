@@ -51,6 +51,12 @@ enum Commands {
         #[arg(long, default_value = "high")]
         stealth: StealthChoice,
 
+        /// Content-adaptive distortion function used to compute per-coefficient
+        /// embedding costs. `uerd` (default) is content-adaptive and substantially
+        /// harder to detect than `uniform` on the Fridrich RS attack.
+        #[arg(long, default_value = "uerd")]
+        cost_function: CostFunctionChoice,
+
         /// Multi-layer payload (passphrase:path)
         #[arg(long)]
         layer: Option<Vec<String>>,
@@ -136,6 +142,21 @@ impl std::fmt::Display for ChannelChoice {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+enum CostFunctionChoice {
+    Uniform,
+    Uerd,
+}
+
+impl std::fmt::Display for CostFunctionChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Uniform => write!(f, "uniform"),
+            Self::Uerd => write!(f, "uerd"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 enum StealthChoice {
     Max,
     High,
@@ -174,10 +195,18 @@ fn main() -> Result<()> {
             output,
             channel,
             stealth,
+            cost_function,
             layer,
-        } => embed::run(
-            input, payload, passphrase, output, *channel, *stealth, layer,
-        )?,
+        } => embed::run(embed::EmbedArgs {
+            input,
+            payload,
+            passphrase,
+            output,
+            channel: *channel,
+            stealth: *stealth,
+            cost_function: *cost_function,
+            layer,
+        })?,
 
         Commands::Extract {
             input,

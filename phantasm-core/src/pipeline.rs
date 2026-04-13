@@ -8,7 +8,8 @@ use sha2::{Digest, Sha256};
 
 use phantasm_cost::CostMap;
 use phantasm_crypto::{
-    derive_locations_key, open, seal, ContentType, Envelope, KdfParams, PayloadMetadata,
+    derive_locations_key, open, seal, ContentType, CryptoError, Envelope, KdfParams,
+    PayloadMetadata,
 };
 use phantasm_image::jpeg::{self, JpegCoefficients};
 use phantasm_stc::{StcConfig, StcDecoder, StcEncoder};
@@ -137,10 +138,21 @@ pub(crate) fn extract_from_cover(
     });
     let message_bits = decoder.extract(&stego_bits, stc_message_len);
 
+    // With a wrong passphrase the STC decoder reads bits from a different
+    // permutation of coefficients, so unframing and envelope parsing are
+    // looking at garbage until the MAC pre-check in `open()` fires. Collapse
+    // those pre-`open()` failure modes to one clean AuthFailed so the user
+    // sees a single "authentication failed" error instead of a framing or
+    // length panic-adjacent message. `UnsupportedVersion` is preserved
+    // verbatim — it's the one error we want a genuine older-format file to
+    // surface with, even though the MAC check would also reject it.
     let framed_bytes = bits_to_bytes_lsb(&message_bits);
-    let envelope_bytes = unframe_bytes(&framed_bytes)?;
-
-    let envelope = bytes_to_envelope(&envelope_bytes)?;
+    let envelope_bytes =
+        unframe_bytes(&framed_bytes).map_err(|_| CoreError::Crypto(CryptoError::AuthFailed))?;
+    let envelope = bytes_to_envelope(&envelope_bytes).map_err(|e| match e {
+        CoreError::Crypto(CryptoError::UnsupportedVersion(_)) => e,
+        _ => CoreError::Crypto(CryptoError::AuthFailed),
+    })?;
     let (_metadata, payload) = open(passphrase, &envelope, &kdf)?;
 
     Ok(payload)
@@ -221,28 +233,11 @@ pub(crate) fn bits_to_bytes_lsb(bits: &[u8]) -> Vec<u8> {
 }
 
 pub(crate) fn envelope_to_bytes(env: &Envelope) -> Vec<u8> {
-    let mut out = Vec::with_capacity(32 + 24 + env.ciphertext.len());
-    out.extend_from_slice(&env.salt);
-    out.extend_from_slice(&env.nonce);
-    out.extend_from_slice(&env.ciphertext);
-    out
+    env.to_bytes()
 }
 
 pub(crate) fn bytes_to_envelope(bytes: &[u8]) -> Result<Envelope, CoreError> {
-    if bytes.len() < 56 {
-        return Err(CoreError::InvalidData(format!(
-            "envelope too short: {} bytes",
-            bytes.len()
-        )));
-    }
-    let salt: [u8; 32] = bytes[..32].try_into().unwrap();
-    let nonce: [u8; 24] = bytes[32..56].try_into().unwrap();
-    let ciphertext = bytes[56..].to_vec();
-    Ok(Envelope {
-        salt,
-        nonce,
-        ciphertext,
-    })
+    Envelope::from_bytes(bytes).map_err(CoreError::Crypto)
 }
 
 pub(crate) fn frame_bytes(data: &[u8]) -> Vec<u8> {

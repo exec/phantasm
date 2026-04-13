@@ -13,4 +13,7 @@ pub enum ImageError {
 
     #[error("FFI failure: {0}")]
     FfiFailure(String),
+
+    #[error("libjpeg error: {0}")]
+    LibjpegError(String),
 }

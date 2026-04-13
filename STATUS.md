@@ -1,9 +1,10 @@
 # Phantasm — Project Status
 
-**Date:** 2026-04-13 (end of day 1)
-**Session length:** ~6 hours
-**Workspace state:** `cargo test --workspace` 132 passing / 0 failing, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --all --check` clean
-**Git state:** repo initialized, zero commits (everything is still staged for review)
+**Date:** 2026-04-14 (day 2 morning — Tier 1 alpha landed)
+**Session length:** ~8 hours across 2 days
+**Workspace state:** `cargo test --workspace` 160 passing / 0 failing, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --all --check` clean
+**Git state:** local `v0.1.0-alpha` tag about to land on a commit containing the day-2 Tier 1 burst. No remote yet.
+**Headline (day 2):** UERD cuts classical Fridrich RS detection rate from **75.3% → 30.8%** at 198-image corpus scale — 44.4 pp drop, 2.4× reduction. See §5 Finding 7 for the full numbers.
 
 ---
 
@@ -126,6 +127,21 @@ Post-burst: fixed two cross-contamination clippy issues (each teammate flagged t
 
 Post-burst: fixed cross-contamination clippy + fmt.
 
+### Day 2 morning — Tier 1 alpha burst (5 teammates sequentially + parallel)
+
+The first session-2 burst, driven autonomously per user mandate "keep researching and developing on your own until we reach stable v0.1.0". Closed the single outstanding day-1 research question AND landed every Tier 1 polish item from STATUS.md §11.
+
+| Teammate | Scope | Outcome |
+|---|---|---|
+| `detection-analyst` | Task #1 — close §7.1, wire fridrich_rs + srm_lite_l2 into eval-corpus, rerun 198-image corpus | **DONE (partial)** — corpus sweep produced the headline result (75.3% → 30.8% RS detection rate, 196/198 paired RS wins, 198/198 paired SRM L2 wins). Code-side aggregation claimed to have landed but the edits were LOST during parallel-burst coordination chaos — discovered by bench-rerunner, reapplied in a follow-up dispatch. See §5 Finding 7 for the result |
+| `cli-wirer` | Task #2 — `phantasm embed --cost-function {uniform,uerd}` CLI flag with UERD default | **DONE** — 14 tests (+5). Also absorbed cross-lane phantasm-core patches during scope extension: updated pipeline.rs to use new Envelope::{to,from}_bytes serialization, and collapsed all post-STC-decode errors in extract_from_cover into clean `CryptoError::AuthFailed` (preserving `UnsupportedVersion` as the one variant that bypasses the collapse) |
+| `image-polish` | Task #3 — task #14 libjpeg longjmp hardening + task #17 Huffman reopt | **DONE with research finding** — Panic-across-C-unwind chosen over setjmp/longjmp (mozjpeg-sys already declares `error_exit` as `extern "C-unwind"`, so a typed `LibjpegPanic` payload propagates from the C error callback through Rust's `catch_unwind` with RAII guards for cleanup). 5 new FFI tests (truncated, garbage, missing, round-trip, huffman-no-inflation). KEY FINDING: mozjpeg's `JCP_MAX_COMPRESSION` profile already enables `trellis_quant` which unconditionally rebuilds Huffman tables on write regardless of `optimize_coding`. Task #17 was effectively done by default — we just didn't know |
+| `crypto-cleaner` | Task #4 — permutation MAC for clean wrong-passphrase detection (task #18) | **DONE** — HMAC-SHA256 truncated to 16 bytes; HKDF-SHA256 key split over Argon2id master_key with info strings `"phantasm-v2-aead"` / `"phantasm-v2-mac"` binding subkey derivation to format version; constant-time compare with explicit truncation bounds; pre-payload prefix outside padded region; new `CryptoError::UnsupportedVersion(u8)` variant; envelope format bumped v1 → v2. 30 tests (+10). All three verifications passed end-to-end: correct-passphrase round-trip, wrong-passphrase clean AuthFailed, day-1 v1 samples uniformly unrecoverable |
+| `bench-rerunner` | Task #6 — re-measure corpus file-size delta through hardened write path | **DONE** — Day-1's `+10,189 B Uniform / +3,057 B UERD` file-inflation numbers reproduce within 7 bytes at corpus scale. Day-2's `73.2% / 31.3%` RS detection rate reproduces within ~2 pp. SRM L2 means reproduce to three decimals. image-polish's "~29 KB smaller" synthetic finding is not wrong — it's from a fundamentally different perturbation pattern (uniform ~2% AC flip vs real STC+UERD). **README can safely cite the existing numbers without revision.** Also caught the missing detection-analyst eval_corpus.rs edits as a bonus save |
+| `eval-corpus-aggregator` | Task #7 — reapply detection-analyst's lost aggregation plumbing | **DONE** — `phantasm-bench/src/eval_corpus.rs` `PerImageMetrics` now has `fridrich_rs_max_rate: f64`, `fridrich_rs_detected: bool`, `srm_lite_l2_distance: f64` fields. `CostFunctionStats` now has `fridrich_rs_detected_fraction: f64`. Aggregation + paired comparisons + markdown report rows + JSON serialization all live. Smoke test on 3 images shows real non-zero values (unlike the old `rs_rate_y` which almost always returned 0 on JPEGs) |
+
+**Burst status:** 160/160 tests, clippy clean, fmt clean. Tier 1 alpha checklist all landed. README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG.md written against the verified headline numbers. `v0.1.0-alpha` tag incoming on the next commit.
+
 ### Burst 7 — Density sweep + Aletheia RS port (2 teammates in parallel)
 
 | Teammate | Scope | Outcome |
@@ -192,17 +208,17 @@ phantasm/
     └── qf90/{512,720,1024}/
 ```
 
-### Test counts per crate
+### Test counts per crate (day 2 morning — after Tier 1 alpha burst)
 ```
-phantasm-image:  17 tests
-phantasm-crypto: 18 tests
+phantasm-image:  22 tests  (+5 from longjmp hardening)
+phantasm-crypto: 30 tests  (+10 from v2 envelope + MAC + HKDF key split)
 phantasm-stc:    15 tests  (9 single-layer + 6 double-layer)
 phantasm-ecc:     9 tests
 phantasm-cost:   10 tests
-phantasm-core:   20 tests  (14 unit + 6 content-adaptive integration)
-phantasm-cli:     9 tests
-phantasm-bench:  34 tests  (12 eval-corpus + 17 stealth + 5 compare)
-Total:          132 tests — all passing
+phantasm-core:   23 tests  (14 unit + 6 content-adaptive integration + 3 pipeline)
+phantasm-cli:    14 tests  (+5 from --cost-function flag integration)
+phantasm-bench:  37 tests  (1 cli_smoke + 7 eval_corpus + 12 metrics + 17 stealth)
+Total:          160 tests — all passing (day 1: 132)
 ```
 
 ---
@@ -257,6 +273,35 @@ Detection battery in `analyze-stealth`:
 
 ## 5. Research Findings — What We've Proven So Far
 
+### Finding 7 (day 2 — 2026-04-14): UERD cuts classical Fridrich RS detection rate from 75% to 31% at population scale
+
+**This is the headline day-2 result.** Closes the central day-1 unanswered question ("does UERD's 4× single-image advantage survive at population scale?") with an emphatic yes.
+
+On the same 198-image corpus with a fixed 3,723-byte payload at ~27% raw capacity, using the Aletheia-faithful Fridrich 2001 RS detector (threshold 0.05, max over R/G/B channels):
+
+| Metric | Uniform | UERD | Delta |
+|---|---:|---:|---:|
+| **Fridrich RS detection rate (max_rate > 0.05)** | **75.3%** (149/198) | **30.8%** (61/198) | **−44.4 pp / 2.4× reduction** |
+| Mean RS max_rate | 0.4798 | 0.0543 | −0.426 (8.8× reduction) |
+| Median RS max_rate | 0.2586 | 0.0235 | −0.218 |
+| p90 RS max_rate | 0.7586 | 0.1308 | −0.628 |
+| Mean SRM-lite L2 distance | 0.6493 | 0.1893 | −0.460 (3.4× lower) |
+| Median SRM-lite L2 distance | 0.6157 | 0.1324 | −0.483 |
+
+**Paired (same image, matched 198/198):**
+- Fridrich RS: UERD beats Uniform on **196/198 images** (mean paired Δ −0.4255, median Δ −0.218). Regressed on only 2 images.
+- SRM-lite L2: UERD beats Uniform on **198/198 images** (mean paired Δ −0.460). Never regresses.
+
+**Interpretation — day 1's outcome (b) strong version, not (a) or (c):**
+- Not the storybook "(a) 75% → 3%" but clearly not "(c) both saturated" either.
+- A 44.4-point drop and 2.4× reduction in detection frequency is a real, publishable population-scale security result using the same detector Aletheia relies on.
+- Mean RS max_rate fell 8.8× (from 0.48 to 0.054) — UERD pushes the median image BELOW the 0.05 threshold. The detection-rate drop is "only" 2.4× because ~31% of UERD stego still crosses the threshold at this density; both distributions straddle the threshold and content-adaptive moves the median, not the tail.
+- SRM-lite paints a sharper picture as a threshold-free distance metric: UERD wins on every single image, with mean distance cut 3.4×.
+
+**What this means for publishability:** the alpha release headline can cite "UERD cuts classical Fridrich RS detection frequency by 2.4× (75% → 31%) at corpus scale" as a real, verified, reproducible security claim. Not hype — we have the numbers, the detector is Aletheia-faithful, the corpus is seed-regenerable.
+
+**Overall_verdict note:** the `analyze_stealth` overall_verdict flag is 100%/100% — both cost functions are "detected" on every image. This is expected and not a UERD failure. Overall_verdict is driven by density-insensitive counts (±1 transition ratio, LSB entropy, histogram TV) that STC rate math pins constant across cost functions. Fridrich RS and SRM L2 are the relevant metrics for evaluating content-adaptive vs uniform.
+
 ### Finding 1: Content-adaptive embedding works (UERD wins SSIM 100%)
 On a 198-image corpus with a fixed 3,723-byte payload at ~27% raw capacity:
 - **UERD wins SSIM in 198/198 images**. Mean paired delta +0.127, median +0.120, p10 +0.057, p90 +0.224.
@@ -299,17 +344,18 @@ PLAN §3.5 has been updated from "5–15% uniform overhead" to a three-tier sens
 ### Research tasks — open
 - **#6**: Spike B follow-up — PDQ overlap analysis (pHash study repeated for Facebook's PDQ, likely stricter)
 - **#7**: `phantasm analyze` — per-image hash sensitivity classification (3-tier from Spike B finding)
-- **#27**: Wire SRM-lite L2 into eval-corpus aggregation (parallel-burst race leftover — `srm_lite_l2_distance` field exists in `analyze_stealth` but not in the eval-corpus metric list)
 - **#30**: Research-raw embedding path for real density sweeps (bypass crypto envelope; benchmarking-only)
 
 ### Engineering follow-ups — open
 - **#5**: `phantasm-stc` — replace PRNG H̃ with published Filler 2011 / DDE Lab tables (superseded by #15)
-- **#14**: `phantasm-image` — harden libjpeg error handling with setjmp/longjmp (currently calls `exit()` on fatal errors instead of unwinding into Rust Err)
 - **#15**: `phantasm-stc` — replace double-layer bit-plane construction with paper-standard ternary (current construction has 0.68× bits-per-L1 efficiency vs ideal)
-- **#17**: Stego JPEG file size inflation — Huffman table re-optimization after coefficient write-back (UERD cut this 70% but it's not zero)
-- **#18**: Permutation-MAC for fast wrong-passphrase detection (currently errors out with ugly framing-length failure instead of clean `AuthFailed`)
 - **#19**: Preserve JPEG progression mode (baseline vs progressive) from input to output
 - **#20**: `phantasm analyze` over-reports capacity (ignores envelope padding)
+
+### Engineering follow-ups — closed in day 2 Tier 1 burst
+- **#14**: libjpeg longjmp hardening ✓ (panic-across-C-unwind in phantasm-image/src/jpeg.rs)
+- **#17**: Huffman table re-optimization ✓ (was already done by mozjpeg's trellis_quant; documented)
+- **#18**: Permutation MAC ✓ (HMAC-SHA256-16 with HKDF key split in phantasm-crypto/src/mac.rs)
 
 ### Completed tasks (for the record)
 - #1: Spike A — DCT FFI round-trip ✓
@@ -331,6 +377,14 @@ PLAN §3.5 has been updated from "5–15% uniform overhead" to a three-tier sens
 - #26: Research Burst 2 — SRM-lite features ✓
 - #28: Research Burst 3 — density sweep (flattened by envelope padding, logged as #30) ✓
 - #29: Research Burst 3 — Fridrich RS native Rust port ✓
+- #27: Wire SRM-lite L2 into eval-corpus aggregation (day 2) ✓ (reapplied in day-2 Tier 1 burst after detection-analyst's edits were lost)
+- #31: Day-2 corpus-scale Fridrich RS + SRM L2 sweep — closed §7.1 with the 75%→31% result ✓
+- #32: Day-2 Tier 1 alpha — `--cost-function` CLI flag with UERD default ✓ (cli-wirer)
+- #33: Day-2 Tier 1 alpha — phantasm-image FFI panic-across-C-unwind hardening ✓ (image-polish)
+- #34: Day-2 Tier 1 alpha — phantasm-crypto v2 envelope with HMAC-SHA256 MAC + HKDF key split + FORMAT_VERSION byte ✓ (crypto-cleaner)
+- #35: Day-2 Tier 1 alpha — phantasm-core pipeline error collapse to clean `CryptoError::AuthFailed` ✓ (cli-wirer, cross-lane absorption from crypto-cleaner)
+- #36: Day-2 Tier 1 alpha — corpus file-size number re-verification post-hardening ✓ (bench-rerunner; day-1 numbers reproduce within noise)
+- #37: Day-2 Tier 1 alpha — README + LICENSE-MIT + LICENSE-APACHE + CHANGELOG ✓ (team-lead, written against verified headline numbers)
 
 ---
 
@@ -338,9 +392,11 @@ PLAN §3.5 has been updated from "5–15% uniform overhead" to a three-tier sens
 
 Ordered by a mix of research value and engineering prerequisite:
 
-### 7.1 Close the "does UERD drop classical detection rate at scale" question
+### 7.1 Close the "does UERD drop classical detection rate at scale" question — **CLOSED 2026-04-14**
 
-**Goal:** The single outstanding research question from day 1. We have:
+**Result:** See Finding 7 in §5. UERD drops Fridrich RS detection rate 75.3% → 30.8% (−44.4 pp, 2.4× reduction) on the 198-image corpus. Paired: UERD beats Uniform on 196/198 images for RS, 198/198 for SRM L2. Task #27 also completed (SRM-lite L2 wired into eval-corpus aggregation).
+
+**Original goal (for the record):** The single outstanding research question from day 1. We had:
 - UERD is 4× better than Uniform on single-image Fridrich RS rate
 - Both are below the 0.05 threshold at single-image granularity
 - But the Aletheia-faithful Fridrich RS IS a detector that fires on phantasm stego (it caught our original `stego.jpg` at 0.053)

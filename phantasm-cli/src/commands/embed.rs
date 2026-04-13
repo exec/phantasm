@@ -3,20 +3,35 @@ use log::warn;
 use std::path::{Path, PathBuf};
 
 use phantasm_core::{
-    ChannelProfile, EmbedPlan, HashSensitivity, MinimalOrchestrator, Orchestrator, StealthTier,
+    ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity, Orchestrator,
+    StealthTier,
 };
+use phantasm_cost::{DistortionFunction, Uerd, Uniform};
 
-use crate::{ChannelChoice, StealthChoice};
+use crate::{ChannelChoice, CostFunctionChoice, StealthChoice};
 
-pub fn run(
-    input: &Path,
-    payload: &Option<PathBuf>,
-    passphrase: &Option<String>,
-    output: &Path,
-    channel: ChannelChoice,
-    stealth: StealthChoice,
-    layer: &Option<Vec<String>>,
-) -> Result<()> {
+pub struct EmbedArgs<'a> {
+    pub input: &'a Path,
+    pub payload: &'a Option<PathBuf>,
+    pub passphrase: &'a Option<String>,
+    pub output: &'a Path,
+    pub channel: ChannelChoice,
+    pub stealth: StealthChoice,
+    pub cost_function: CostFunctionChoice,
+    pub layer: &'a Option<Vec<String>>,
+}
+
+pub fn run(args: EmbedArgs<'_>) -> Result<()> {
+    let EmbedArgs {
+        input,
+        payload,
+        passphrase,
+        output,
+        channel,
+        stealth,
+        cost_function,
+        layer,
+    } = args;
     let has_payload = payload.is_some();
     let has_passphrase = passphrase.is_some();
     let has_layers = layer.as_ref().is_some_and(|l| !l.is_empty());
@@ -89,13 +104,18 @@ pub fn run(
         hash_sensitivity: HashSensitivity::Robust,
     };
 
-    let orchestrator = MinimalOrchestrator;
+    let distortion: Box<dyn DistortionFunction> = match cost_function {
+        CostFunctionChoice::Uniform => Box::new(Uniform),
+        CostFunctionChoice::Uerd => Box::new(Uerd),
+    };
+    let orchestrator = ContentAdaptiveOrchestrator::new(distortion);
     let result = orchestrator.embed(input, &payload_bytes, passphrase_str, &plan, output)?;
 
     println!(
-        "Embedded {} bytes into {}",
+        "Embedded {} bytes into {} (cost_function={})",
         result.bytes_embedded,
-        output.display()
+        output.display(),
+        cost_function
     );
     println!("Capacity used: {:.1}%", result.capacity_used_ratio * 100.0);
 

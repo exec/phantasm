@@ -327,3 +327,114 @@ fn component_indexing_roundtrip() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Test 11: Truncated JPEG returns Err, does not crash the process
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jpeg_truncated_returns_err() {
+    let (_src_tmp, src_path) = make_jpeg_fixture(256, 256, 85);
+    let full = std::fs::read(&src_path).unwrap();
+    assert!(
+        full.len() > 200,
+        "fixture JPEG should be larger than 200 bytes"
+    );
+    // Keep only the first 100 bytes — header is valid but scan data is missing.
+    let truncated = &full[..100];
+
+    let trunc_tmp = NamedTempFile::with_suffix(".jpg").unwrap();
+    let trunc_path = trunc_tmp.path().to_path_buf();
+    std::fs::write(&trunc_path, truncated).unwrap();
+
+    let result = jpeg::read(&trunc_path);
+    assert!(result.is_err(), "truncated JPEG should return Err, got Ok");
+}
+
+// ---------------------------------------------------------------------------
+// Test 12: Garbage bytes with JPEG magic return Err, no crash
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jpeg_garbage_returns_err() {
+    // Start with SOI + APP0/JFIF-shaped prefix, then random garbage.
+    let mut bytes = vec![0xFFu8, 0xD8, 0xFF, 0xE0];
+    // APP0 length = 16, bogus JFIF identifier and version.
+    bytes.extend_from_slice(&[0x00, 0x10]);
+    bytes.extend_from_slice(b"JFIF\0");
+    bytes.extend_from_slice(&[0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00]);
+    // Pile on garbage bytes where libjpeg expects more markers.
+    for i in 0..2048 {
+        bytes.push(((i * 37) ^ 0x5a) as u8);
+    }
+
+    let tmp = NamedTempFile::with_suffix(".jpg").unwrap();
+    let path = tmp.path().to_path_buf();
+    std::fs::write(&path, &bytes).unwrap();
+
+    let result = jpeg::read(&path);
+    assert!(result.is_err(), "garbage JPEG should return Err, got Ok");
+}
+
+// ---------------------------------------------------------------------------
+// Test 13: Non-existent file returns Err (not a crash)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jpeg_missing_file_returns_err() {
+    let tmp = NamedTempFile::with_suffix(".jpg").unwrap();
+    let path = tmp.path().to_path_buf();
+    drop(tmp); // delete the file
+    let result = jpeg::read(&path);
+    assert!(result.is_err(), "missing file should return Err");
+}
+
+// ---------------------------------------------------------------------------
+// Test 14: Valid JPEG still round-trips after hardening
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jpeg_valid_still_roundtrips_after_hardening() {
+    let (_src_tmp, src_path) = make_jpeg_fixture(200, 150, 90);
+    let dst_tmp = NamedTempFile::with_suffix(".jpg").unwrap();
+    let dst_path = dst_tmp.path().to_path_buf();
+
+    let original = jpeg::read(&src_path).expect("valid JPEG should decode");
+    jpeg::write_with_source(&original, &src_path, &dst_path).expect("valid JPEG should re-encode");
+    let readback = jpeg::read(&dst_path).expect("re-encoded JPEG should decode");
+
+    assert_eq!(original.components.len(), readback.components.len());
+    for (orig_comp, back_comp) in original.components.iter().zip(readback.components.iter()) {
+        assert_eq!(
+            orig_comp.coefficients, back_comp.coefficients,
+            "coefficients must survive round-trip even with Huffman reopt enabled"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 15: Huffman reopt reduces (or keeps equal) the output file size on
+// an unmodified re-encode of a real cover
+// ---------------------------------------------------------------------------
+
+#[test]
+fn jpeg_huffman_reopt_does_not_inflate_unmodified_roundtrip() {
+    let (_src_tmp, src_path) = make_jpeg_fixture(256, 256, 85);
+    let dst_tmp = NamedTempFile::with_suffix(".jpg").unwrap();
+    let dst_path = dst_tmp.path().to_path_buf();
+
+    let original = jpeg::read(&src_path).unwrap();
+    jpeg::write_with_source(&original, &src_path, &dst_path).unwrap();
+
+    let src_size = std::fs::metadata(&src_path).unwrap().len() as i64;
+    let dst_size = std::fs::metadata(&dst_path).unwrap().len() as i64;
+
+    // With optimize_coding = TRUE, a no-op round-trip should generally shrink
+    // (or at worst equal) the input: we're recomputing Huffman tables from
+    // the true coefficient histogram. Allow a small slack (+64 B) for header
+    // differences but reject large inflation.
+    assert!(
+        dst_size <= src_size + 64,
+        "round-trip size grew: src={src_size} dst={dst_size}"
+    );
+}
