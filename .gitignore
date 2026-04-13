@@ -1,0 +1,45 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+!/Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Spike scratch
+spikes/**/target/
+spikes/**/*.pdf
+spikes/**/samples/
+spikes/**/fixtures/large/
+# Phase -1 Spike B's 60-image corpus (regenerable from analyze.py)
+spikes/phash-overlap/corpus/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Python venvs
+venv/
+.venv/
+
+# Environment
+.env
+.envrc
+
+# Ad-hoc research outputs at repo root (scratch stego samples, test covers)
+/stego*.jpg
+/cover.jpg
+/test.jpg
+/test.jpeg
+
+# Stegoveritas / external tool scratch output
+/results/

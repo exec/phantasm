@@ -1,0 +1,19 @@
+[package]
+name = "phantasm-image"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Safe image I/O for the phantasm steganography stack"
+
+[dependencies]
+mozjpeg-sys = { version = "2.2.4-beta.1", features = ["jpegtran"] }
+image = { version = "0.24", default-features = true }
+thiserror = "1"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

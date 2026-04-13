@@ -1,0 +1,15 @@
+[package]
+name = "dct-roundtrip"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "dct-roundtrip-spike"
+path = "src/main.rs"
+
+[dependencies]
+mozjpeg-sys = "2.2.4-beta.1"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"

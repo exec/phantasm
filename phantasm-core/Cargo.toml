@@ -1,0 +1,20 @@
+[package]
+name = "phantasm-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+thiserror = "1"
+phantasm-image = { path = "../phantasm-image" }
+phantasm-crypto = { path = "../phantasm-crypto" }
+phantasm-stc = { path = "../phantasm-stc" }
+phantasm-ecc = { path = "../phantasm-ecc" }
+phantasm-cost = { path = "../phantasm-cost" }
+rand = "0.8"
+rand_chacha = "0.3"
+sha2 = "0.10"
+
+[dev-dependencies]
+image = "0.25"
+tempfile = "3"

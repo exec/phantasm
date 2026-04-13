@@ -1,0 +1,2393 @@
+{
+  "source": "picsum.photos",
+  "fetched_at": "2026-04-12T22:45:00Z",
+  "total_count": 198,
+  "by_qf": {
+    "85": 66,
+    "75": 66,
+    "90": 66
+  },
+  "by_dimension": {
+    "1024": 66,
+    "720": 66,
+    "512": 66
+  },
+  "images": [
+    {
+      "path": "qf75/512/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0001/512/512",
+      "seed": "phantasm-0001",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 31752,
+      "sha256": "8a63a5ec73f569550ba7d4d1b7bdc33af31fde49be75398dca6b1856ba9a76e9"
+    },
+    {
+      "path": "qf75/512/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0002/512/512",
+      "seed": "phantasm-0002",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 77306,
+      "sha256": "742bcbcc9d098a508534ecf18f3618bdcb833edfa42074b9814155aa8ce9a493"
+    },
+    {
+      "path": "qf75/512/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0003/512/512",
+      "seed": "phantasm-0003",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 30001,
+      "sha256": "90fe91cccd5f60c6c3ebcd688714d574d9d54546a607a870eeed22214e360265"
+    },
+    {
+      "path": "qf75/512/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0004/512/512",
+      "seed": "phantasm-0004",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 18145,
+      "sha256": "69325884bf6c22af91bc15a4f98e9ca2d4b01cb83ed8b113738122c03789763b"
+    },
+    {
+      "path": "qf75/512/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0005/512/512",
+      "seed": "phantasm-0005",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 42414,
+      "sha256": "46b3e5827164b2cbfa1311ffeb97e372d4fc1771b0cce313c1f1122e8e36e8c3"
+    },
+    {
+      "path": "qf75/512/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0006/512/512",
+      "seed": "phantasm-0006",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 34039,
+      "sha256": "5fe30a55e07542b1c405efda3a04b635b5be900a4660eb92e60276bdcdcc229b"
+    },
+    {
+      "path": "qf75/512/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0007/512/512",
+      "seed": "phantasm-0007",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 24476,
+      "sha256": "910949fc86ec1cd5db637676d3e9dc80380dd7b2b8dfeea044f906863048a47a"
+    },
+    {
+      "path": "qf75/512/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0008/512/512",
+      "seed": "phantasm-0008",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 36465,
+      "sha256": "fd2a0e45759ab558cc919fd5806d367aa4d7721b67d87e86d8ed6710cd92e300"
+    },
+    {
+      "path": "qf75/512/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0009/512/512",
+      "seed": "phantasm-0009",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 18411,
+      "sha256": "28cd022aa4ede7ce6bc5d49298c77b86b66b967a41cd65fac307f721135df968"
+    },
+    {
+      "path": "qf75/512/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0010/512/512",
+      "seed": "phantasm-0010",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 35859,
+      "sha256": "be13408d83adddeb81e75307444bc31efbc900fab33560535bfe5298d065d50a"
+    },
+    {
+      "path": "qf75/512/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0011/512/512",
+      "seed": "phantasm-0011",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 77777,
+      "sha256": "79a9f418bdb27ac0dbbed4c26239abff69f9163a3f735ac8438285e12735fa18"
+    },
+    {
+      "path": "qf75/512/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0012/512/512",
+      "seed": "phantasm-0012",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 51176,
+      "sha256": "8ce5e11d7f8c4d7ea69d89b4e3863f6b9a07bdc91f5798e0e6cf28e469d16dca"
+    },
+    {
+      "path": "qf75/512/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0013/512/512",
+      "seed": "phantasm-0013",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 71713,
+      "sha256": "6055bf72e4cf097ff7fda68453adef3db98b7b15a9813484464091275a7f686f"
+    },
+    {
+      "path": "qf75/512/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0014/512/512",
+      "seed": "phantasm-0014",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 51166,
+      "sha256": "0574e2ebded81a12368ff15ad11ae62333c5be2517b56a7c08cef07903e05831"
+    },
+    {
+      "path": "qf75/512/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0015/512/512",
+      "seed": "phantasm-0015",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 17267,
+      "sha256": "fe475e686d44dac8ef8d12a837b80ff682db7e87c2d9eba9f75588bc933192f4"
+    },
+    {
+      "path": "qf75/512/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0016/512/512",
+      "seed": "phantasm-0016",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 18145,
+      "sha256": "69325884bf6c22af91bc15a4f98e9ca2d4b01cb83ed8b113738122c03789763b"
+    },
+    {
+      "path": "qf75/512/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0017/512/512",
+      "seed": "phantasm-0017",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 23288,
+      "sha256": "60c4d4721a1c30d72b0a71da214431defb4501c41d25a6f5aacebed1f90e1056"
+    },
+    {
+      "path": "qf75/512/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0018/512/512",
+      "seed": "phantasm-0018",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 63794,
+      "sha256": "39e48e24dc30dd42ca652ec65f68e7f08bfcfd4f74063f3886934edad8b8fb67"
+    },
+    {
+      "path": "qf75/512/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0019/512/512",
+      "seed": "phantasm-0019",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 23668,
+      "sha256": "a25cc3f27892bcca7a06d5992fb826ba4f3586859c84a07bf07adcd0baf5319c"
+    },
+    {
+      "path": "qf75/512/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0020/512/512",
+      "seed": "phantasm-0020",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 48710,
+      "sha256": "e2fe20b0ccd63842586178ac6b425fef8b91f9e3fe795b75a1eff9ac23ed6428"
+    },
+    {
+      "path": "qf75/512/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0021/512/512",
+      "seed": "phantasm-0021",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 27656,
+      "sha256": "89c888135a585a211060477a44485c935a1c69990e2ca0e927be8745ad4f8629"
+    },
+    {
+      "path": "qf75/512/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0022/512/512",
+      "seed": "phantasm-0022",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 75,
+      "size_bytes": 38056,
+      "sha256": "6a3639681a5ea2bb39de650188a84bd330a11d237b02c05ece81a90766b485da"
+    },
+    {
+      "path": "qf75/1024/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0023/1024/1024",
+      "seed": "phantasm-0023",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 142750,
+      "sha256": "1fb31997bc26560930b6281b1d00ab3f08ce04d8b7c18184d6241b808d0cbfd1"
+    },
+    {
+      "path": "qf75/1024/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0024/1024/1024",
+      "seed": "phantasm-0024",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 188068,
+      "sha256": "afb6f5ae131d82d150a077be4cd299e4aa8d93634d7550fb40cc8bc5b1f6d1ff"
+    },
+    {
+      "path": "qf75/1024/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0025/1024/1024",
+      "seed": "phantasm-0025",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 131213,
+      "sha256": "bb81c182a9305c9dc9f788cdc97bead9de1ff4661f8126c9aaa0fd4c48126fde"
+    },
+    {
+      "path": "qf75/1024/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0026/1024/1024",
+      "seed": "phantasm-0026",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 53260,
+      "sha256": "612d86834594e1f699a9834c41d9d90d7b3c48270ed7bd66188636260a61d633"
+    },
+    {
+      "path": "qf75/1024/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0027/1024/1024",
+      "seed": "phantasm-0027",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 311362,
+      "sha256": "337d1cb75860ea7dfbb341339be4f0f31917195704c4dbcc97ffc55e96f9009b"
+    },
+    {
+      "path": "qf75/1024/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0028/1024/1024",
+      "seed": "phantasm-0028",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 50273,
+      "sha256": "b99fd9203b341497155e8a9fbec909ab5f0a080cca35b5419fe9533aab1c1b7a"
+    },
+    {
+      "path": "qf75/1024/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0029/1024/1024",
+      "seed": "phantasm-0029",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 88111,
+      "sha256": "58cd17dfd2783599a60b1a7345abe90efeab7cad7fd437c50078c4a4d51c5c9e"
+    },
+    {
+      "path": "qf75/1024/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0030/1024/1024",
+      "seed": "phantasm-0030",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 164213,
+      "sha256": "926bcee66041247c1e6b45bb18a3bf62c68267e04514c7602adb7342d43d1853"
+    },
+    {
+      "path": "qf75/1024/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0031/1024/1024",
+      "seed": "phantasm-0031",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 209794,
+      "sha256": "025abbf0c455a5a8ca922258b96b20158f442992adfa2e0a33fce6c08f002025"
+    },
+    {
+      "path": "qf75/1024/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0032/1024/1024",
+      "seed": "phantasm-0032",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 291375,
+      "sha256": "33440ffcff7e75d1067be866a22477da8b75f25d5a2efeae5ce392079ff12bd5"
+    },
+    {
+      "path": "qf75/1024/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0033/1024/1024",
+      "seed": "phantasm-0033",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 99145,
+      "sha256": "70ae04c8d231bf741bedf83aa2e647296d4ad20b4300a24b0e8fcaadeffa8dfd"
+    },
+    {
+      "path": "qf75/1024/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0034/1024/1024",
+      "seed": "phantasm-0034",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 196485,
+      "sha256": "27fef89688ff7b3b6356642e7ac3a1d3624f8f4e740e8e763c7d97bead116c3f"
+    },
+    {
+      "path": "qf75/1024/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0035/1024/1024",
+      "seed": "phantasm-0035",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 93129,
+      "sha256": "deac8c7ead62ddd08e8a987e6b36f8d1d2283d7a039ef6ed25998e13bdea342d"
+    },
+    {
+      "path": "qf75/1024/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0036/1024/1024",
+      "seed": "phantasm-0036",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 121401,
+      "sha256": "f883a9f906ad7cf220c67fb207d913b1501b5f2bb2c6cb331eb1ac92bf27150c"
+    },
+    {
+      "path": "qf75/1024/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0037/1024/1024",
+      "seed": "phantasm-0037",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 84658,
+      "sha256": "5a448e06d4910c657396466d6ff8d7dbdb1ed8aa9bc52f58bce3e0f839a9d36b"
+    },
+    {
+      "path": "qf75/1024/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0038/1024/1024",
+      "seed": "phantasm-0038",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 139276,
+      "sha256": "b248edd3b39f88f94f2c1eea7106e791edc5fec74d429e65ceeb5ec97baf31a4"
+    },
+    {
+      "path": "qf75/1024/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0039/1024/1024",
+      "seed": "phantasm-0039",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 170663,
+      "sha256": "89a69f6eb37ff1a5dde292df0d8b9634c8c0c2295048d8830f7168128da21361"
+    },
+    {
+      "path": "qf75/1024/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0040/1024/1024",
+      "seed": "phantasm-0040",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 157522,
+      "sha256": "0b9598b3d9c560b272f23b9c18aa5798f5e5457a0f8ec733ccf367681e3924db"
+    },
+    {
+      "path": "qf75/1024/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0041/1024/1024",
+      "seed": "phantasm-0041",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 151270,
+      "sha256": "84d76a684db8aef675f575a9f8ab228fcad8322d178803c27a76c4c131d8ec1a"
+    },
+    {
+      "path": "qf75/1024/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0042/1024/1024",
+      "seed": "phantasm-0042",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 232027,
+      "sha256": "08a8a008773ff9c51dc2fa7ffbbb3aa24ad2d2bf047cf96fce20199965840e7c"
+    },
+    {
+      "path": "qf75/1024/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0043/1024/1024",
+      "seed": "phantasm-0043",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 97292,
+      "sha256": "b3b579b71e98a0d772ec3387651085490f622e12d77d4ecbdf95c5a36d53d438"
+    },
+    {
+      "path": "qf75/1024/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0044/1024/1024",
+      "seed": "phantasm-0044",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 75,
+      "size_bytes": 170663,
+      "sha256": "89a69f6eb37ff1a5dde292df0d8b9634c8c0c2295048d8830f7168128da21361"
+    },
+    {
+      "path": "qf75/720/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0045/720/680",
+      "seed": "phantasm-0045",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 89515,
+      "sha256": "78653dbbab63ff81ac26d16fe07f1fffbe0e448b525225e3a9efa83dff5a7beb"
+    },
+    {
+      "path": "qf75/720/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0046/720/680",
+      "seed": "phantasm-0046",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 56139,
+      "sha256": "02dd7997d478ad1accb0f3d28eaa4e8ed17a1e25a68c6c014455781ec4186534"
+    },
+    {
+      "path": "qf75/720/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0047/720/680",
+      "seed": "phantasm-0047",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 49673,
+      "sha256": "cf707157c1bac515ce9617180b986ec512743b53ef586249dd6308ad68207a00"
+    },
+    {
+      "path": "qf75/720/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0048/720/680",
+      "seed": "phantasm-0048",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 107370,
+      "sha256": "9db192b7294696218d4b8dc8024cc00733cab9a77be1583187d30468dcc45fcc"
+    },
+    {
+      "path": "qf75/720/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0049/720/680",
+      "seed": "phantasm-0049",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 82937,
+      "sha256": "b19e5dc9c139e86455cc5cb2370e6a60f8ace41ae6569f8c30ec4454aa17fba7"
+    },
+    {
+      "path": "qf75/720/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0050/720/680",
+      "seed": "phantasm-0050",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 97794,
+      "sha256": "e46246eeec9d0ec09ad7ed85e6faa9a9fb549f7b431e82efa6c57e2a99a7c722"
+    },
+    {
+      "path": "qf75/720/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0051/720/680",
+      "seed": "phantasm-0051",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 60398,
+      "sha256": "41fafad8b510c542aaf99dad4605e9592050f64a79ffc1a49f4bdc6918c8a722"
+    },
+    {
+      "path": "qf75/720/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0052/720/680",
+      "seed": "phantasm-0052",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 36076,
+      "sha256": "0ba66f38770625ac9bfd11bfe2c88b23e97470953beecb5057fb5652235c1493"
+    },
+    {
+      "path": "qf75/720/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0053/720/680",
+      "seed": "phantasm-0053",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 101394,
+      "sha256": "1cea0029fcac12f1c91c6c3bd913de0389d080b4fff38f4b16ad1552d87faa01"
+    },
+    {
+      "path": "qf75/720/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0054/720/680",
+      "seed": "phantasm-0054",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 109483,
+      "sha256": "70bde62ed38df4edaaf5cea702c67c459116b253618dd6c7a1ecd49f6e51bc5a"
+    },
+    {
+      "path": "qf75/720/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0055/720/680",
+      "seed": "phantasm-0055",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 64101,
+      "sha256": "cc29896c99200a1c24d669b5d33dfd19e01bee009ce44256c42e4db65a094ac4"
+    },
+    {
+      "path": "qf75/720/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0056/720/680",
+      "seed": "phantasm-0056",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 74372,
+      "sha256": "2a50dbd89f8d74b07b39b1e04e960803683841e3b7cbdb04c43f42b460c89357"
+    },
+    {
+      "path": "qf75/720/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0057/720/680",
+      "seed": "phantasm-0057",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 38704,
+      "sha256": "35d6877b5097537b8a1281c5fcc3c57b29735d0b6f0570e4e880a056738a45d0"
+    },
+    {
+      "path": "qf75/720/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0058/720/680",
+      "seed": "phantasm-0058",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 63061,
+      "sha256": "8ed75d376af6c2c6b1a702e182cdb346df69de5f40e586f1fc060e7f99b6c806"
+    },
+    {
+      "path": "qf75/720/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0059/720/680",
+      "seed": "phantasm-0059",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 102233,
+      "sha256": "e241aed23a845a351f710c1d430be6ba714927cf9459b194c0a18a6893f57a54"
+    },
+    {
+      "path": "qf75/720/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0060/720/680",
+      "seed": "phantasm-0060",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 137833,
+      "sha256": "52835f6df4bb3b26d469edd24e33ce08de724e6e90f0a160269f31616295f918"
+    },
+    {
+      "path": "qf75/720/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0061/720/680",
+      "seed": "phantasm-0061",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 48366,
+      "sha256": "45fb83714bc03c3619f8ddf494c19ed1305885b339e958057b5447d1803fea96"
+    },
+    {
+      "path": "qf75/720/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0062/720/680",
+      "seed": "phantasm-0062",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 40038,
+      "sha256": "397531cf60af51bc647a5e51da08e6c723b50cced4e2bbd15eb14ccfe2404c70"
+    },
+    {
+      "path": "qf75/720/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0063/720/680",
+      "seed": "phantasm-0063",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 120236,
+      "sha256": "32d513bd8481b4814011662095d782683ebbbfcbf10d2ac1f0595f6e9b61237e"
+    },
+    {
+      "path": "qf75/720/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0064/720/680",
+      "seed": "phantasm-0064",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 101394,
+      "sha256": "1cea0029fcac12f1c91c6c3bd913de0389d080b4fff38f4b16ad1552d87faa01"
+    },
+    {
+      "path": "qf75/720/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0065/720/680",
+      "seed": "phantasm-0065",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 72235,
+      "sha256": "719770e6b50484bc8e6f1620d40f9dab9c9d4287938fdd3a59c67c75050cf47b"
+    },
+    {
+      "path": "qf75/720/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0066/720/680",
+      "seed": "phantasm-0066",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 75,
+      "size_bytes": 27412,
+      "sha256": "da495b4e302b2e3b1e8154c16ba6b7daf37b798413891281a32bc521c710617c"
+    },
+    {
+      "path": "qf85/512/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0067/512/512",
+      "seed": "phantasm-0067",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 56469,
+      "sha256": "07ff3da48a540ff91ed575a1a4cbbd7c5bc2605fbc949594bec41c14810b81b0"
+    },
+    {
+      "path": "qf85/512/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0068/512/512",
+      "seed": "phantasm-0068",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 36632,
+      "sha256": "e5d8d933216a212ffa69aafbc0dfe36578887b16ce0db71e742944a2a81bea93"
+    },
+    {
+      "path": "qf85/512/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0069/512/512",
+      "seed": "phantasm-0069",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 36770,
+      "sha256": "58d13ac85c78146eda37d58f149fc4f7e17181d74446b9bc81ac07e47529f419"
+    },
+    {
+      "path": "qf85/512/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0070/512/512",
+      "seed": "phantasm-0070",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 64425,
+      "sha256": "63e7f03380e6a4a6da34e5174dae4a2a04fdeaf562271007ef2ae312d8bafb21"
+    },
+    {
+      "path": "qf85/512/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0071/512/512",
+      "seed": "phantasm-0071",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 57329,
+      "sha256": "d89d79596956bb7084a080a6e28a1d8c1f2f232c942a7ee8daa6da8dcc7196f6"
+    },
+    {
+      "path": "qf85/512/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0072/512/512",
+      "seed": "phantasm-0072",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 33137,
+      "sha256": "6a89eb8f5f920fa5a5b50a2441c9a9ff12f65db6c340d2059bcb6d40bfbe266a"
+    },
+    {
+      "path": "qf85/512/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0073/512/512",
+      "seed": "phantasm-0073",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 45947,
+      "sha256": "a6b3b59c17659c57b0474b50facea0242fbfd9bbc7dcac3eb102ddad3be4c36b"
+    },
+    {
+      "path": "qf85/512/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0074/512/512",
+      "seed": "phantasm-0074",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 49593,
+      "sha256": "88ec158b8bd9e34e3bbe31a3b28f995a6db9cb7b8481c61c97c7e8c4db1306fb"
+    },
+    {
+      "path": "qf85/512/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0075/512/512",
+      "seed": "phantasm-0075",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 23520,
+      "sha256": "b73e3aaa7aff0a674cbeb98844adf21f44179ac11340482f1d1850082b05dadf"
+    },
+    {
+      "path": "qf85/512/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0076/512/512",
+      "seed": "phantasm-0076",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 80706,
+      "sha256": "fc5c4b9560d8b28ebfedbbc9d2169642398a641b420784e2c602fef703930c08"
+    },
+    {
+      "path": "qf85/512/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0077/512/512",
+      "seed": "phantasm-0077",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 70740,
+      "sha256": "8add6b965efc5daa1b89046df08e6ac3ee35500e90ce625120d23f57e80fb00a"
+    },
+    {
+      "path": "qf85/512/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0078/512/512",
+      "seed": "phantasm-0078",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 30309,
+      "sha256": "ee8ee298a459a14428b423d6704e01261923a45b6e6e44507280891600aaa101"
+    },
+    {
+      "path": "qf85/512/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0079/512/512",
+      "seed": "phantasm-0079",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 96099,
+      "sha256": "5eca805ff7222b940bc4dc86d24a3c8262043afce116baaf43a8ee11344eccb7"
+    },
+    {
+      "path": "qf85/512/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0080/512/512",
+      "seed": "phantasm-0080",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 20198,
+      "sha256": "bb61ce8793dc59450fb5f79e4668b81440c2019f9d00a2126d54089aabe6bdd4"
+    },
+    {
+      "path": "qf85/512/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0081/512/512",
+      "seed": "phantasm-0081",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 87218,
+      "sha256": "a49e06b1a164cec672c6d3cef25c5586f720486e6be0f5fb13c57bf964a94409"
+    },
+    {
+      "path": "qf85/512/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0082/512/512",
+      "seed": "phantasm-0082",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 48991,
+      "sha256": "1af350b9f2007c491462d4bee0762ea5c6080c7c21922c7faa8773565c1976ff"
+    },
+    {
+      "path": "qf85/512/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0083/512/512",
+      "seed": "phantasm-0083",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 110236,
+      "sha256": "97662ad003e327770f6be870ff1a219c7230801938c5bdd4aace404466b1eaff"
+    },
+    {
+      "path": "qf85/512/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0084/512/512",
+      "seed": "phantasm-0084",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 55057,
+      "sha256": "92af05e65ddc377a92f18481d41b4971c2f7581c430bd62caf5739c0193f3239"
+    },
+    {
+      "path": "qf85/512/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0085/512/512",
+      "seed": "phantasm-0085",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 32876,
+      "sha256": "7a7a3204e29d5be8c468f1ae28d00d19a914df069a9237596cdfd1c2619472bc"
+    },
+    {
+      "path": "qf85/512/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0086/512/512",
+      "seed": "phantasm-0086",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 20930,
+      "sha256": "f6981da046f5d7169d6407f43f9cadfe8e87b63ab4058ddfd20d9e0debd52955"
+    },
+    {
+      "path": "qf85/512/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0087/512/512",
+      "seed": "phantasm-0087",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 71990,
+      "sha256": "8f7a6a49fe3c1b76ca39dc9547a49fbb009a26927d6695d0322684625ab33b0c"
+    },
+    {
+      "path": "qf85/512/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0088/512/512",
+      "seed": "phantasm-0088",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 85,
+      "size_bytes": 21540,
+      "sha256": "a1191f3eff17a934797b311343c59a4ceb83a8aafd9c9a2fc20bcf4a550f4975"
+    },
+    {
+      "path": "qf85/1024/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0089/1024/1024",
+      "seed": "phantasm-0089",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 238954,
+      "sha256": "edc27e8c7c804825da769aa08a662966945eb59eb17104fae0c9cd45bb5fa14e"
+    },
+    {
+      "path": "qf85/1024/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0090/1024/1024",
+      "seed": "phantasm-0090",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 91733,
+      "sha256": "5580171b55bb2d333283a0e992dbbbd3710bc8c374c07ec96f2f30b2cdf93c36"
+    },
+    {
+      "path": "qf85/1024/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0091/1024/1024",
+      "seed": "phantasm-0091",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 174454,
+      "sha256": "51c2e9b36f0263299ba5cee233db4e21c9cd960f9d6b329a3ff9d15b74a28b7f"
+    },
+    {
+      "path": "qf85/1024/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0092/1024/1024",
+      "seed": "phantasm-0092",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 236490,
+      "sha256": "31cb231a525e954c0041aa34b0f522f2b2a6fd5c95715753d95e0ee7694af9a0"
+    },
+    {
+      "path": "qf85/1024/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0093/1024/1024",
+      "seed": "phantasm-0093",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 195938,
+      "sha256": "87f1f1087a92253d039f88b4995ab42c83e077250bc53fb9b04f7301f3818462"
+    },
+    {
+      "path": "qf85/1024/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0094/1024/1024",
+      "seed": "phantasm-0094",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 202749,
+      "sha256": "9f3aac459b624cdae323f3fcfd513c918fa0e718a230c086589d1511c82f3770"
+    },
+    {
+      "path": "qf85/1024/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0095/1024/1024",
+      "seed": "phantasm-0095",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 325165,
+      "sha256": "c692f73f634fbf5a3eea97abf235c84db70f6afb5d4e3afe97eb3cd6468c21df"
+    },
+    {
+      "path": "qf85/1024/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0096/1024/1024",
+      "seed": "phantasm-0096",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 169744,
+      "sha256": "b69eb3ac4821b22a944716818fab9cccf25247c8d03e6a5f1a0ec596ada3112a"
+    },
+    {
+      "path": "qf85/1024/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0097/1024/1024",
+      "seed": "phantasm-0097",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 269921,
+      "sha256": "218a92e21e962a436a66f05e104b5e30f5a7316a444cbf3b58591a0fcc9c357a"
+    },
+    {
+      "path": "qf85/1024/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0098/1024/1024",
+      "seed": "phantasm-0098",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 197112,
+      "sha256": "b72c409ce8905d1aca7f438537e7e8bee80852f27e5a4d0783bd3f0137d6dc5a"
+    },
+    {
+      "path": "qf85/1024/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0099/1024/1024",
+      "seed": "phantasm-0099",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 115225,
+      "sha256": "73fb4a719941c6bff1b215c718a5c90f17eb5d96137b16ac416c7eedfdea4667"
+    },
+    {
+      "path": "qf85/1024/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0100/1024/1024",
+      "seed": "phantasm-0100",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 281223,
+      "sha256": "81389bf2a0c08181798e4cfb0f90c3294f01cafbc957b6ab9683e48d03ba7c35"
+    },
+    {
+      "path": "qf85/1024/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0101/1024/1024",
+      "seed": "phantasm-0101",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 122106,
+      "sha256": "e895709aeb55ce643cfa00492a7164e4719628b15fcaaa0672c8d50fe21d2aaa"
+    },
+    {
+      "path": "qf85/1024/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0102/1024/1024",
+      "seed": "phantasm-0102",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 109314,
+      "sha256": "f21549a74be87f0f9acd5d537e875f682a42f48b376a4728d155c9923916e508"
+    },
+    {
+      "path": "qf85/1024/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0103/1024/1024",
+      "seed": "phantasm-0103",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 116451,
+      "sha256": "4054ab8a7779ea5078278f79d02b798f771a9a32cd79c75169db80b2cdaf1e64"
+    },
+    {
+      "path": "qf85/1024/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0104/1024/1024",
+      "seed": "phantasm-0104",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 177004,
+      "sha256": "241d2546824e4698a29efe463c64b9461d662fa3afa16539b50bd71822d37405"
+    },
+    {
+      "path": "qf85/1024/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0105/1024/1024",
+      "seed": "phantasm-0105",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 273954,
+      "sha256": "e1e48e95b72b18c5ed6c41153ec462c96ab787be0c9e16b8827708173c93dc04"
+    },
+    {
+      "path": "qf85/1024/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0106/1024/1024",
+      "seed": "phantasm-0106",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 159784,
+      "sha256": "b3879d8032631f5a2e5281a4c3b0e98a03cb3a0f199143d7d3da177616884c78"
+    },
+    {
+      "path": "qf85/1024/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0107/1024/1024",
+      "seed": "phantasm-0107",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 328331,
+      "sha256": "27b6711769817058e5219cdb080125d40e06da6061103bcaaf37b963d1a1ba82"
+    },
+    {
+      "path": "qf85/1024/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0108/1024/1024",
+      "seed": "phantasm-0108",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 163769,
+      "sha256": "15a806195b426298436e48412243bc6c354ac97825a84a59772839ebd6ef8a45"
+    },
+    {
+      "path": "qf85/1024/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0109/1024/1024",
+      "seed": "phantasm-0109",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 115338,
+      "sha256": "068557efcee8c53daab17a7683c7df36aeab35eed15fe231f551049c9698315a"
+    },
+    {
+      "path": "qf85/1024/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0110/1024/1024",
+      "seed": "phantasm-0110",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 85,
+      "size_bytes": 139326,
+      "sha256": "30d8e3bce2e625f83416ee56f950e8025a1c72410049a846531ecf52444acc86"
+    },
+    {
+      "path": "qf85/720/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0111/720/680",
+      "seed": "phantasm-0111",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 141466,
+      "sha256": "da48ce99f6b4220c1581040ba86744431ae5f48900fc627551c22fa5f9a0e843"
+    },
+    {
+      "path": "qf85/720/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0112/720/680",
+      "seed": "phantasm-0112",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 77070,
+      "sha256": "3178c238f6b89b56953bf9a96fd4870ec0a179752a41f00d6088713fda92bb46"
+    },
+    {
+      "path": "qf85/720/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0113/720/680",
+      "seed": "phantasm-0113",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 93599,
+      "sha256": "fd350f67e7dc7ce21b1a68cefc785a211002a00c7661f9325ae8cc042c8e2467"
+    },
+    {
+      "path": "qf85/720/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0114/720/680",
+      "seed": "phantasm-0114",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 150226,
+      "sha256": "a8ea2636ade633338fdf0f9425cbee180872e8fa70cd7b8000a0656fae5d9c06"
+    },
+    {
+      "path": "qf85/720/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0115/720/680",
+      "seed": "phantasm-0115",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 97528,
+      "sha256": "577431d6a41ad2909b900e9938a9c468de4ebd4abd86b7d57db552621a044361"
+    },
+    {
+      "path": "qf85/720/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0116/720/680",
+      "seed": "phantasm-0116",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 64284,
+      "sha256": "ca34892ffba30402cca46ada3ec9d60a3bce2660e60828413156e5829ba49f34"
+    },
+    {
+      "path": "qf85/720/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0117/720/680",
+      "seed": "phantasm-0117",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 90558,
+      "sha256": "afa05ba0f9b55b05271db734b35cc02dd3cf140ec440dcb5f7ab6eaf32170e5b"
+    },
+    {
+      "path": "qf85/720/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0118/720/680",
+      "seed": "phantasm-0118",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 76329,
+      "sha256": "cdb9a8fb04c6afbf98b839d7ebc7782517bd947cb940cbb5b70b337c7650991c"
+    },
+    {
+      "path": "qf85/720/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0119/720/680",
+      "seed": "phantasm-0119",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 89256,
+      "sha256": "a8d371943c28406e9d8156d0fa5b33b39b46e80f9d41dae1937e91b3116f0579"
+    },
+    {
+      "path": "qf85/720/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0120/720/680",
+      "seed": "phantasm-0120",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 69977,
+      "sha256": "64a73862818a8a6bd6b34236e83f75c666ba236ef96a57af93d6af948958ea43"
+    },
+    {
+      "path": "qf85/720/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0121/720/680",
+      "seed": "phantasm-0121",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 68862,
+      "sha256": "5edd059ab4a6998e1b1c7db9c03162e774f2bc3a191d8c20f42c16f29e23fa78"
+    },
+    {
+      "path": "qf85/720/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0122/720/680",
+      "seed": "phantasm-0122",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 115066,
+      "sha256": "40fd17156e8cf4ded32975d420b374b10acd6dc3e84cd21906f67a3274cfe49e"
+    },
+    {
+      "path": "qf85/720/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0123/720/680",
+      "seed": "phantasm-0123",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 77571,
+      "sha256": "1b09ea59ebbdab59ac143c1c1733eb569043e0d7e821d56f358500bfef16f7f8"
+    },
+    {
+      "path": "qf85/720/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0124/720/680",
+      "seed": "phantasm-0124",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 139172,
+      "sha256": "f00076b0a12fb4d6e0f9f1611f8ea86f228ef60d1856f7f7c9d8e43defca6549"
+    },
+    {
+      "path": "qf85/720/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0125/720/680",
+      "seed": "phantasm-0125",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 86926,
+      "sha256": "64b847b008a2aee336514723bd999ba3825ec3cf97c424b55957934df70761fd"
+    },
+    {
+      "path": "qf85/720/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0126/720/680",
+      "seed": "phantasm-0126",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 52478,
+      "sha256": "f0f32259b8797531d2eddfb1d281b3f54b27e374e4fd913c9e5eb0f700609267"
+    },
+    {
+      "path": "qf85/720/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0127/720/680",
+      "seed": "phantasm-0127",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 74950,
+      "sha256": "c41100a18dde65da0759fd1741e7a7ed8a85fde6d68a90d3fa9e57782d2acfe9"
+    },
+    {
+      "path": "qf85/720/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0128/720/680",
+      "seed": "phantasm-0128",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 130115,
+      "sha256": "c177a4c4f0fce1485569c44f7dad64f40b2e5c9a5144da631226056a201bf9a2"
+    },
+    {
+      "path": "qf85/720/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0129/720/680",
+      "seed": "phantasm-0129",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 153058,
+      "sha256": "5e5477824e7dc5cc0bb61c5d3e53d1d87a10e66069e935b66a04f989917976cd"
+    },
+    {
+      "path": "qf85/720/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0130/720/680",
+      "seed": "phantasm-0130",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 128229,
+      "sha256": "0c60ba91013371278f1909004c3b0e7fb847f9071d409892d5183ead9030ebb8"
+    },
+    {
+      "path": "qf85/720/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0131/720/680",
+      "seed": "phantasm-0131",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 139172,
+      "sha256": "f00076b0a12fb4d6e0f9f1611f8ea86f228ef60d1856f7f7c9d8e43defca6549"
+    },
+    {
+      "path": "qf85/720/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0132/720/680",
+      "seed": "phantasm-0132",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 85,
+      "size_bytes": 130335,
+      "sha256": "6163b49ed91a1da7a7c99c3ccc9e033efaa7f77482847b244eaf490a1ed0534d"
+    },
+    {
+      "path": "qf90/512/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0133/512/512",
+      "seed": "phantasm-0133",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 62569,
+      "sha256": "ffa22cae075d47cda03dd470465794fe8ac20982781e6a0acc6ed1f9b36c1b80"
+    },
+    {
+      "path": "qf90/512/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0134/512/512",
+      "seed": "phantasm-0134",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 18865,
+      "sha256": "c39b4ddd0fa53cdd6ec86c608048b9bdbeee01ee8382e2a3fff1feea2d8a4106"
+    },
+    {
+      "path": "qf90/512/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0135/512/512",
+      "seed": "phantasm-0135",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 97623,
+      "sha256": "19942420a2f16fa63d778030677b580fae2cf2a65516c70e9089b2deb7dc26c2"
+    },
+    {
+      "path": "qf90/512/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0136/512/512",
+      "seed": "phantasm-0136",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 27950,
+      "sha256": "00f50368bf057382197a56fb44a9dacd96069a884ddd980ca4a051b45232da8c"
+    },
+    {
+      "path": "qf90/512/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0137/512/512",
+      "seed": "phantasm-0137",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 58135,
+      "sha256": "4cdaef8a0fd80f70279548d06604cec1e708b1c8bde27af02a13ae9727dc771b"
+    },
+    {
+      "path": "qf90/512/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0138/512/512",
+      "seed": "phantasm-0138",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 70559,
+      "sha256": "042952384c511d679ab244deaaa77636e13dc08f79509b607447002c117b6914"
+    },
+    {
+      "path": "qf90/512/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0139/512/512",
+      "seed": "phantasm-0139",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 57233,
+      "sha256": "88f272eb1e19d410f5994b41649d9147806dc235809bc463a589c54af4c61a4e"
+    },
+    {
+      "path": "qf90/512/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0140/512/512",
+      "seed": "phantasm-0140",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 92081,
+      "sha256": "610e12ed0e59f559260b7b215225604dae329ebef47ad97e74dc89da43050b2e"
+    },
+    {
+      "path": "qf90/512/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0141/512/512",
+      "seed": "phantasm-0141",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 36675,
+      "sha256": "5bd2023828ff48e230f201c45249b54edd67d6dfe5c940e11f93edbcf9a2210a"
+    },
+    {
+      "path": "qf90/512/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0142/512/512",
+      "seed": "phantasm-0142",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 99440,
+      "sha256": "bd83ccfc3165a2b167c9e3b54e0fb8af99cfac0da070cd86eb4e62e0b8e0fb1d"
+    },
+    {
+      "path": "qf90/512/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0143/512/512",
+      "seed": "phantasm-0143",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 86973,
+      "sha256": "0f8467cb7e84b2d0e682d6c9980c43df91813359e216619876e73b12330512e9"
+    },
+    {
+      "path": "qf90/512/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0144/512/512",
+      "seed": "phantasm-0144",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 78797,
+      "sha256": "7c35ba8193fd53f596ce085cf0f38802ba3d876b43e27756593a0b639a59f507"
+    },
+    {
+      "path": "qf90/512/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0145/512/512",
+      "seed": "phantasm-0145",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 50569,
+      "sha256": "33b1cbd60fb499bc08c53306489f7fe54eeefefb119b7afc826f16f84699573e"
+    },
+    {
+      "path": "qf90/512/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0146/512/512",
+      "seed": "phantasm-0146",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 49065,
+      "sha256": "7d8afc395fcb67828a9698cd78305f78cc9e5d0f743ec446a249222ad4edf5fe"
+    },
+    {
+      "path": "qf90/512/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0147/512/512",
+      "seed": "phantasm-0147",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 105006,
+      "sha256": "b1162eea4f093f404a1e76a63cd2704eaf4de512165306f1abe1b0ee091c4bd0"
+    },
+    {
+      "path": "qf90/512/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0148/512/512",
+      "seed": "phantasm-0148",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 49065,
+      "sha256": "7d8afc395fcb67828a9698cd78305f78cc9e5d0f743ec446a249222ad4edf5fe"
+    },
+    {
+      "path": "qf90/512/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0149/512/512",
+      "seed": "phantasm-0149",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 36708,
+      "sha256": "ededa010acf14c93ffd493caaf778921259dec4e83348bd61fea3d67a6758a87"
+    },
+    {
+      "path": "qf90/512/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0150/512/512",
+      "seed": "phantasm-0150",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 93185,
+      "sha256": "58127089f5f7936922380edcc2aa38a724e148a7c2902c0c95ddb35fa542929c"
+    },
+    {
+      "path": "qf90/512/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0151/512/512",
+      "seed": "phantasm-0151",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 45790,
+      "sha256": "f278795bef8de50aa8fffeafb42a3f57c286dc7d33ec2b4e8f02f7e90eaa5202"
+    },
+    {
+      "path": "qf90/512/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0152/512/512",
+      "seed": "phantasm-0152",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 39620,
+      "sha256": "1aa99866da2acb938dfc4e4356b55c452cf1166a400bc3942ea626910afd442c"
+    },
+    {
+      "path": "qf90/512/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0153/512/512",
+      "seed": "phantasm-0153",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 84900,
+      "sha256": "2ab44009c4933d484429979db921ed134f701a64c729f9b2f4c333823c2c7ba6"
+    },
+    {
+      "path": "qf90/512/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0154/512/512",
+      "seed": "phantasm-0154",
+      "dimensions": [
+        512,
+        512
+      ],
+      "quality_factor": 90,
+      "size_bytes": 132451,
+      "sha256": "3af2af61d736a134fe05f61731c6236755e63bc225cbf59fc96a31b344aeace5"
+    },
+    {
+      "path": "qf90/1024/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0155/1024/1024",
+      "seed": "phantasm-0155",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 312365,
+      "sha256": "ec13c34cf5eafeba4bf94b05b19eb1c6544be88104e59cd0947b940a8f71cd97"
+    },
+    {
+      "path": "qf90/1024/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0156/1024/1024",
+      "seed": "phantasm-0156",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 348729,
+      "sha256": "6c6cc9d3581e948dce42b54759591d0dd8e2a93dfc6b7b22da3de8d57581f14f"
+    },
+    {
+      "path": "qf90/1024/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0157/1024/1024",
+      "seed": "phantasm-0157",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 213157,
+      "sha256": "3d674b845d3ff08e97a907cc2e9c2bad8f721f710b6fcb1f5802333ce9dc2184"
+    },
+    {
+      "path": "qf90/1024/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0158/1024/1024",
+      "seed": "phantasm-0158",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 384700,
+      "sha256": "cb89c911fbd67549640dafe530f24b19ce81df45016ca0cf649b542d3acb1aae"
+    },
+    {
+      "path": "qf90/1024/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0159/1024/1024",
+      "seed": "phantasm-0159",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 162179,
+      "sha256": "dacd6a5dfd0b846cfe650e49903df60157adc25890a21f0d1bffcc851bc39590"
+    },
+    {
+      "path": "qf90/1024/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0160/1024/1024",
+      "seed": "phantasm-0160",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 298669,
+      "sha256": "919fe2fd2f37d0455f39f61e6cfb0a1659ae27b0cb788cd5832d13e17604c272"
+    },
+    {
+      "path": "qf90/1024/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0161/1024/1024",
+      "seed": "phantasm-0161",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 266971,
+      "sha256": "7d9210f6f85b71bf93f4f5a6d8b3e4a7ea1bfe52111b62e58378f471e5086af5"
+    },
+    {
+      "path": "qf90/1024/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0162/1024/1024",
+      "seed": "phantasm-0162",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 250522,
+      "sha256": "88c1a01b5c47427c8217a48bfa952320e9f62cce80c9ea36eaec812fe1a74234"
+    },
+    {
+      "path": "qf90/1024/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0163/1024/1024",
+      "seed": "phantasm-0163",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 142760,
+      "sha256": "1e6a0d8ef7da502b7569a366afa7a3fd9d98d120504f0a06f57f2487613bcd6a"
+    },
+    {
+      "path": "qf90/1024/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0164/1024/1024",
+      "seed": "phantasm-0164",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 362946,
+      "sha256": "047a11d3042a67220b1cfa5a13a72d5a7444bf91f44c53a027af8fbb22a9a8cf"
+    },
+    {
+      "path": "qf90/1024/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0165/1024/1024",
+      "seed": "phantasm-0165",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 481976,
+      "sha256": "4657cddce90bf6316898961404354f6f65d7d38d79d5c48132f9d63d5499fa33"
+    },
+    {
+      "path": "qf90/1024/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0166/1024/1024",
+      "seed": "phantasm-0166",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 200226,
+      "sha256": "a4ebff40c0976cc3afcda484e8cac18700c29fb03329b39585abb110202471e3"
+    },
+    {
+      "path": "qf90/1024/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0167/1024/1024",
+      "seed": "phantasm-0167",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 301382,
+      "sha256": "f630b15e4a8b2a401fb78e665df0be9d0b42c70882ad580fac52d6e7b718ad50"
+    },
+    {
+      "path": "qf90/1024/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0168/1024/1024",
+      "seed": "phantasm-0168",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 276720,
+      "sha256": "fc4eced281b23fc00dd525bcadd143c9b89883d946c85461a111ca6f31dac070"
+    },
+    {
+      "path": "qf90/1024/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0169/1024/1024",
+      "seed": "phantasm-0169",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 213850,
+      "sha256": "79c734f3e79afa74fe6d9455d0d3e3765b8a961db9dce98d62b7ef25ef5c7d38"
+    },
+    {
+      "path": "qf90/1024/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0170/1024/1024",
+      "seed": "phantasm-0170",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 217360,
+      "sha256": "cf62c8944caeadd715696ab0429599f45a1c2be1079669151a4512367b379545"
+    },
+    {
+      "path": "qf90/1024/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0171/1024/1024",
+      "seed": "phantasm-0171",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 267461,
+      "sha256": "a1d180d463abd4fa8ab93b8e752d14002effdef51c8591f8714fd35bff90c877"
+    },
+    {
+      "path": "qf90/1024/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0172/1024/1024",
+      "seed": "phantasm-0172",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 121873,
+      "sha256": "ffd01f1b5854f6d1f39a5448933f0daf2c5366665801374e5156ef35120580ce"
+    },
+    {
+      "path": "qf90/1024/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0173/1024/1024",
+      "seed": "phantasm-0173",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 315965,
+      "sha256": "cd5dfef848153fd32e24b060dd93ad73287442f6da37445ab72493f3816a0122"
+    },
+    {
+      "path": "qf90/1024/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0174/1024/1024",
+      "seed": "phantasm-0174",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 241436,
+      "sha256": "e5dde06fa0814da2ce10868f331df91caf42a38cf57263532bd74b11ad62f879"
+    },
+    {
+      "path": "qf90/1024/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0175/1024/1024",
+      "seed": "phantasm-0175",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 171740,
+      "sha256": "2d14bb9dba5ad8d01d12d11315bf81560a629afd72a04b0d2e0e6fb8e41ec7c0"
+    },
+    {
+      "path": "qf90/1024/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0176/1024/1024",
+      "seed": "phantasm-0176",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "quality_factor": 90,
+      "size_bytes": 262517,
+      "sha256": "42762e709cfc5a1561ba1d1d6f40ac8864814fd53b01be169a13c0bf513b89e0"
+    },
+    {
+      "path": "qf90/720/0001.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0177/720/680",
+      "seed": "phantasm-0177",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 69271,
+      "sha256": "b436ac02e2792f6c8d52d422e057b1661a960d90e383dfdce8982c723bc51fb4"
+    },
+    {
+      "path": "qf90/720/0002.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0178/720/680",
+      "seed": "phantasm-0178",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 200824,
+      "sha256": "589b5c481e95ead68726b5c436dec32d1c8b9d19a5e463b50aeb9984b3cb03b7"
+    },
+    {
+      "path": "qf90/720/0003.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0179/720/680",
+      "seed": "phantasm-0179",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 117752,
+      "sha256": "87aeb40fbaa88345244afb8974a55759ce3c3f224d64d42d1d03a649719c11bb"
+    },
+    {
+      "path": "qf90/720/0004.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0180/720/680",
+      "seed": "phantasm-0180",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 101565,
+      "sha256": "16d2bb12bb02f0bc37c5684f4682dfe9c44402eb37e5406fab497d4150794f3c"
+    },
+    {
+      "path": "qf90/720/0005.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0181/720/680",
+      "seed": "phantasm-0181",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 72966,
+      "sha256": "3d13dea4a983d39f0b073268fad27da880f16dea22f7c8fbf1754efcee008091"
+    },
+    {
+      "path": "qf90/720/0006.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0182/720/680",
+      "seed": "phantasm-0182",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 155621,
+      "sha256": "7a83923d0048a541230127fbe4345d7da9b3d80c1388510d24c5c0c2cf383531"
+    },
+    {
+      "path": "qf90/720/0007.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0183/720/680",
+      "seed": "phantasm-0183",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 111024,
+      "sha256": "4594a3fff3c31e2e3052991a8cc435dfa23cfa945bbf042b20721c1a88de03af"
+    },
+    {
+      "path": "qf90/720/0008.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0184/720/680",
+      "seed": "phantasm-0184",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 71301,
+      "sha256": "a7693018ccbe47b4823ee0e8b4a013ca5b449a402b317e3b0d30d438a51e992c"
+    },
+    {
+      "path": "qf90/720/0009.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0185/720/680",
+      "seed": "phantasm-0185",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 64835,
+      "sha256": "6ed6aa4827d9677a149d8019c06279362565273399c86742b88e9a7d113958d7"
+    },
+    {
+      "path": "qf90/720/0010.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0186/720/680",
+      "seed": "phantasm-0186",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 113738,
+      "sha256": "f36656f81eddbd2a9a508ab685be2e5a507499989901df84d1f154db7c1f33af"
+    },
+    {
+      "path": "qf90/720/0011.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0187/720/680",
+      "seed": "phantasm-0187",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 151158,
+      "sha256": "9309051751f62e4c7095027860d24b82733d6aea6873959fd1af5575a193aff2"
+    },
+    {
+      "path": "qf90/720/0012.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0188/720/680",
+      "seed": "phantasm-0188",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 167648,
+      "sha256": "a43a4d96d6de9716285c8d5a13e94fc6f96dce815c60cef7b04da914f8d023e6"
+    },
+    {
+      "path": "qf90/720/0013.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0189/720/680",
+      "seed": "phantasm-0189",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 133141,
+      "sha256": "7f427fc1aef77e7668e99a2ea7013ef885dbae029be2156b68dd909b168aeedb"
+    },
+    {
+      "path": "qf90/720/0014.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0190/720/680",
+      "seed": "phantasm-0190",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 211642,
+      "sha256": "b329d4299c05d72b15ce9538008c0b0c8d82bbf802d106fb748a37df5c597e66"
+    },
+    {
+      "path": "qf90/720/0015.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0191/720/680",
+      "seed": "phantasm-0191",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 38213,
+      "sha256": "fd7096815b8ed9f8299647e7c9e56ee1bc1c5cdcd87dafca30e3b6644462dffb"
+    },
+    {
+      "path": "qf90/720/0016.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0192/720/680",
+      "seed": "phantasm-0192",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 39090,
+      "sha256": "7d2102985f39d565db248491ae1cbd80116b0d74e7424786134030d0046f73b0"
+    },
+    {
+      "path": "qf90/720/0017.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0193/720/680",
+      "seed": "phantasm-0193",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 111346,
+      "sha256": "5f824a10f166a1ac676c3d3cc534d998ac609503d1ff97c5ce9aea4f76dc8e94"
+    },
+    {
+      "path": "qf90/720/0018.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0194/720/680",
+      "seed": "phantasm-0194",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 61468,
+      "sha256": "0a10725ca0724952afb22a5f6bc21ca6e657bc82eaebff98c38aabb0cd0e85b2"
+    },
+    {
+      "path": "qf90/720/0019.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0195/720/680",
+      "seed": "phantasm-0195",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 42155,
+      "sha256": "43fdc7c8a7cf6a8b0682ef5fc5f6a33e2755732b05383adfcb4785922131beff"
+    },
+    {
+      "path": "qf90/720/0020.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0196/720/680",
+      "seed": "phantasm-0196",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 155621,
+      "sha256": "7a83923d0048a541230127fbe4345d7da9b3d80c1388510d24c5c0c2cf383531"
+    },
+    {
+      "path": "qf90/720/0021.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0197/720/680",
+      "seed": "phantasm-0197",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 53830,
+      "sha256": "5f9c429ae6ec3eba4cecdaff385d4d5edbd91e762f6d8ff12ae0f993f8e8b1ac"
+    },
+    {
+      "path": "qf90/720/0022.jpg",
+      "source_url": "https://picsum.photos/seed/phantasm-0198/720/680",
+      "seed": "phantasm-0198",
+      "dimensions": [
+        720,
+        680
+      ],
+      "quality_factor": 90,
+      "size_bytes": 123630,
+      "sha256": "3b5ae150a7d19198013ae26620aa42011c30dbfe02f2db28c97f02bd8a9ba091"
+    }
+  ]
+}

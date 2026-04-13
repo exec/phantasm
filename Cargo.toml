@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "phantasm-image",
+    "phantasm-crypto",
+    "phantasm-stc",
+    "phantasm-ecc",
+    "phantasm-core",
+    "phantasm-cli",
+    "phantasm-bench",
+    "phantasm-cost",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
+
+[workspace.dependencies]
+thiserror = "1"
+anyhow = "1"

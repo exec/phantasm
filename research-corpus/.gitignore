@@ -1,0 +1,5 @@
+# Exclude the image files — they're regenerable from the seeds in manifest.json.
+qf*/
+# But keep the manifest and README
+!manifest.json
+!README.md
