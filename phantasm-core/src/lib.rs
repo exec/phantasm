@@ -1,6 +1,7 @@
 pub mod channel;
 pub mod content_adaptive;
 pub mod error;
+pub mod hash_guard;
 pub mod minimal;
 pub mod orchestrator;
 pub(crate) mod pipeline;
