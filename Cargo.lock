@@ -1711,6 +1711,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "phantasm-channel"
+version = "0.1.0"
+dependencies = [
+ "image 0.24.9",
+ "phantasm-cost",
+ "phantasm-image",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "phantasm-cli"
 version = "0.1.0"
 dependencies = [

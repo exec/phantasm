@@ -9,6 +9,7 @@ members = [
     "phantasm-cli",
     "phantasm-bench",
     "phantasm-cost",
+    "phantasm-channel",
 ]
 
 [workspace.package]
