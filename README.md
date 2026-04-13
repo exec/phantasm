@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="phantasm.png" alt="phantasm" />
+</p>
+
 # phantasm
 
 **Content-adaptive JPEG steganography in Rust.** Research-grade v0.1.0 stable.
