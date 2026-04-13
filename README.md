@@ -48,28 +48,33 @@ A second evaluation against pretrained CNN steganalyzers — JIN-SRNet (Butora/Y
 
 Against classical Fridrich RS, **UERD wins**. Against modern JIN-SRNet, **J-UNIWARD wins**. **49.5% of phantasm J-UNIWARD stegos score lower P(stego) than their own cover** — JIN-SRNet sees the stego as more cover-like than the original cover. The Aletheia EffNet-B0 detector (despite severe cover-source mismatch on Picsum) agrees with JIN-SRNet on the ordering in paired-per-cover analysis. **For a modern (deep-learning) threat model, use `--cost-function j-uniward`. For a classical adversary, UERD remains the default.** See [ML_STEGANALYSIS.md § Findings](ML_STEGANALYSIS.md#findings-in-order-of-importance) for the full breakdown.
 
-#### Attacker adaptation: a cheap fine-tune breaks UERD but not J-UNIWARD
+#### Attacker adaptation: both cost functions fold, but J-UNIWARD stays ahead
 
-A 21-second fine-tune of JIN-SRNet on phantasm UERD output (288 training examples, init from the public J-UNIWARD-trained checkpoint, run on a single RTX 5070) lifts UERD detection from 57.6% to **77.8%** — a 20 percentage-point jump. The same fine-tune *decreases* J-UNIWARD detection (28.3% → 25.3%).
+A 21-second fine-tune of JIN-SRNet on phantasm UERD output (288 training examples, init from the public J-UNIWARD-trained checkpoint, run on a single RTX 5070) lifts UERD detection from 57.6% to **77.8%** — a 20 percentage-point jump. The symmetric experiment — fine-tuning instead on phantasm J-UNIWARD output — lifts J-UNIWARD detection by an even bigger **+26.3 pp**, from 28.3% to 54.5%. **Both cost functions are vulnerable to cheap attacker adaptation; the cost-function-mismatch artifact framing is wrong.**
 
-| Cost function | JIN-SRNet baseline | After 21s UERD fine-tune | Δ |
+But after each cost function is fine-tuned against specifically:
+
+| State | UERD detection | J-UNIWARD detection | gap |
 |---|---:|---:|---:|
-| **uerd** | 57.6% | **77.8%** | **+20.2 pp** |
-| **juniward** | 28.3% | **25.3%** | **−3.0 pp** |
+| Baseline JIN-SRNet | 57.6% | 28.3% | 29 pp |
+| After targeted fine-tune | 77.8% | **54.5%** | **23 pp** |
 
-**UERD's modern-detector robustness was partially a cost-function-mismatch artifact. J-UNIWARD's is structural** — at least against this fine-tune strategy. A real attacker with a proper training corpus would lift UERD detection further (probably 90%+); J-UNIWARD's evasion does not close under cheap attacker adaptation by this method. This reinforces the **"use J-UNIWARD for modern threat models"** recommendation: J-UNIWARD is the only one of phantasm's three cost functions whose evasion holds up under cheap attacker adaptation. See [ML_STEGANALYSIS.md § Update 1](ML_STEGANALYSIS.md#update-1--uerd-fine-tune-option-b-complete) for the methodology and full numbers.
+J-UNIWARD remains 23 percentage points harder to detect than UERD even when an adversary trains specifically against it. **The "use `--cost-function j-uniward` for modern threat models" recommendation stands** — not because J-UNIWARD's evasion is structurally robust, but because J-UNIWARD has a lower absolute detection rate at every fine-tuning stage, including post-attacker-adaptation.
+
+A side finding from the symmetric experiment: **the J-UNIWARD-aware fine-tuned model is the strongest general detector of the three.** It has the lowest cover false positive (4.5%), highest Uniform detection (95.5%), competitive UERD detection (73.7%), and best J-UNIWARD detection (54.5%). Training against the hardest target produced the best detector overall — consistent with general adversarial-robustness intuition that subtle adversaries teach the most discriminating features. See [ML_STEGANALYSIS.md § Update 2](ML_STEGANALYSIS.md#update-2--symmetric-j-uniward-fine-tune-option-b-validation) for the three-way detector comparison.
 
 #### What's still open
 
-- **Asymmetry validation.** The Update 1 finding hinges on UERD-aware fine-tunes lifting UERD detection while leaving J-UNIWARD alone. If a J-UNIWARD-aware fine-tune from a UERD baseline symmetrically lifts J-UNIWARD detection, the asymmetry is fake. Validation in progress (see [ML_STEGANALYSIS.md § v0.2 research direction proposal](ML_STEGANALYSIS.md#v02-research-direction-proposal)).
-- **Adversarial costs.** Most ambitious v0.2 direction. Use a deployed CNN as a differentiable distortion oracle and compute embedding costs that maximize distance from its decision boundary. Gated on the asymmetry validation.
-- **No public UERD-trained CNN baseline exists.** The fine-tuned UERD-aware model in Update 1 is phantasm's own contribution; cross-validation against a third-party checkpoint is not currently possible.
+- **Extended dataset hardening.** Both fine-tunes used 288 examples from 22 unique seeds, single passphrase. The +20 / +26 pp lift estimates carry sample noise. Cheap follow-ups: 5–10 passphrases per cover (no fetches), or extend Picsum corpus to 500 covers.
+- **Adversarial costs (Option C).** Use the J-UNIWARD-fine-tuned checkpoint from Update 2 as a differentiable distortion oracle and compute per-coefficient embedding costs that maximize distance from its decision boundary. The detector to beat is no longer off-the-shelf SRNet but our own most-capable adversary-trained model.
+- **No public third-party UERD-trained baseline.** Both fine-tunes in this work are phantasm's own contribution; an independent UERD-trained checkpoint would help triangulate the lift numbers.
 
 For the security-capacity curve, both detectors' detailed results, cross-detector consistency analysis, and the full caveats list, see [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md). Direct links:
 - [TL;DR](ML_STEGANALYSIS.md#tldr)
 - [What we ran](ML_STEGANALYSIS.md#what-we-ran)
 - [Detailed results — fixed payload](ML_STEGANALYSIS.md#detailed-results--fixed-payload-198-covers-3-kb---stealth-high)
-- [Update 1 — UERD fine-tune](ML_STEGANALYSIS.md#update-1--uerd-fine-tune-option-b-complete)
+- [Update 1 — UERD fine-tune](ML_STEGANALYSIS.md#update-1--uerd-fine-tune-option-b-complete--partially-superseded-by-update-2)
+- [Update 2 — Symmetric J-UNIWARD fine-tune](ML_STEGANALYSIS.md#update-2--symmetric-j-uniward-fine-tune-option-b-validation)
 - [Cross-detector consistency](ML_STEGANALYSIS.md#cross-detector-consistency)
 - [Caveats](ML_STEGANALYSIS.md#caveats)
 - [v0.2 research direction proposal](ML_STEGANALYSIS.md#v02-research-direction-proposal)

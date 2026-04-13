@@ -332,10 +332,11 @@ Tested phantasm v0.1.0 at the default 3 KB payload (~0.2 bpnzac) on the same 198
 **Threat-model implication:** The "right" cost function depends on the adversary. For classical statistical adversaries, UERD remains correct (and is still the v0.1.0 default). For deep-learning adversaries, **J-UNIWARD is the better choice and the v0.2 user-facing recommendation**. The CLI help text on `--cost-function` was updated to surface this tradeoff explicitly. The default has not been changed for v0.1.0 backward-compatibility; flipping the default is a candidate v0.2 behavior change.
 
 **Caveats** (full list in ML_STEGANALYSIS.md):
-- Both pretrained detectors were trained against J-UNIWARD specifically. A hypothetical UERD-trained CNN does not exist publicly. UERD numbers in this eval are cross-cost transfer, not direct. Closing this gap is the **Option B** v0.2 work item — fine-tune JIN-SRNet to a UERD-aware detector and re-run.
 - N=198, single corpus (Picsum), single passphrase per cover, ~0.2 bpnzac payload. Across-seed and cross-corpus variance not measured.
 - JIN-SRNet license is "research-use, conventional" per DDE Lab convention; not explicitly tagged. Verify before publishing eval numbers externally.
 - Aletheia ONNX path uses CPU inference (CUDA EP failed against the Blackwell 5070 — needs cuDNN 9.x + CUDA 12.x; tolerable since CPU still hits 22 img/s).
+
+**Follow-up: Update 1 + Update 2 in ML_STEGANALYSIS.md.** A 21-second UERD-aware fine-tune of JIN-SRNet lifts UERD detection from 57.6% to 77.8% (+20 pp). The symmetric J-UNIWARD-aware fine-tune lifts J-UNIWARD detection from 28.3% to 54.5% (+26 pp). **Both cost functions are vulnerable to attacker adaptation; the "structural vs mismatch" framing initially proposed in Update 1 was wrong.** But J-UNIWARD remains 23 pp harder to detect than UERD even after each is targeted by its specific fine-tune (UERD 77.8%, J-UNIWARD 54.5% post-attacker-adaptation). The "use J-UNIWARD for modern threat models" recommendation stands, justified by lower absolute detection rate at every fine-tuning stage rather than by structural evasion. See `ML_STEGANALYSIS.md` § Update 1 and § Update 2 for the three-way detector comparison and Option C reframing.
 
 ### Finding 8 (day 2 afternoon — v0.1.0 final bench): Post-STC-fix numbers improve across the board
 
