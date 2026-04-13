@@ -1,11 +1,16 @@
 # Phantasm — Project Status
 
-**Date:** 2026-04-14 (day 2 afternoon — Tier 2 research track landed, v0.1.0 stable tag imminent)
-**Session length:** ~11 hours across 2 days
-**Workspace state:** `cargo test --workspace` 211 passing / 0 failing, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --all --check` clean
-**Git state:** `v0.1.0-alpha` tagged at commit 82b89a4; 8 Tier 2 commits landed on top of alpha since. `v0.1.0` stable tag is the next step after the final-bench numbers come back. No remote yet.
-**Headline (day 2 Tier 1):** UERD cuts classical Fridrich RS detection rate from **75.3% → 30.8%** at 198-image corpus scale — 44.4 pp drop, 2.4× reduction (§5 Finding 7).
-**Headline (day 2 Tier 2):** All five PLAN.md thesis pillars are now reachable via the `phantasm` CLI: UERD + J-UNIWARD content-adaptive costs, DDE Lab-published STC H̃ tables with 0.995× conditional-layering efficiency, AEAD envelope with v2 permutation MAC, Twitter channel adapter (98.7% coefficient survival on real re-encode), and 3-tier perceptual-hash sensitivity classifier with wet-paper constraint.
+**Date:** 2026-04-14 (v0.1.0 shipped)
+**Session length:** ~13 hours across 2 days
+**Workspace state:** `cargo test --workspace` 224 passing / 0 failing, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --all --check` clean
+**Git state:** `v0.1.0-alpha` tagged at commit `82b89a4`. `v0.1.0` tagged at commit `1617dad`. Pushed to `https://github.com/exec/phantasm` (private repo, owner `exec`). Two cosmetic README commits past the v0.1.0 tag in `main` (logo + heading drop) — not part of the tag.
+**v0.1.0 shipping headline:** UERD cuts classical Fridrich RS detection rate from **66.7% → 26.8%** at 198-image corpus scale (40 pp drop, 2.5× reduction, paired 195/198). Mean file-size delta is NEGATIVE under UERD at −1,321 B per image (stego smaller than cover). See §5 Finding 8 for the full numbers.
+**Five-pillar thesis:** All reachable via the `phantasm` CLI in v0.1.0:
+  1. **Content-adaptive cost functions** — `--cost-function {uniform, uerd, j-uniward}`
+  2. **Syndrome-trellis coding** — published DDE Lab H̃ tables (Filler 2011) + conditional-probability double-layer at 0.995× bits/L1
+  3. **Modern AEAD envelope** — Argon2id + XChaCha20-Poly1305 + HMAC-SHA256-16 + HKDF key split + FORMAT_VERSION byte 2
+  4. **Channel-adaptive preprocessing** — `--channel-adapter twitter` (MINICER+ROAST, 98.7% coefficient survival)
+  5. **Perceptual-hash preservation** — `--hash-guard {phash, dhash}` (3-tier sensitivity classifier + wet-paper constraint)
 
 ---
 
@@ -237,20 +242,18 @@ phantasm/
     └── qf90/{512,720,1024}/
 ```
 
-### Test counts per crate (day 2 afternoon — after Tier 2 research + integration)
+### Test counts per crate (v0.1.0 shipped state)
 ```
-phantasm-image:  22 tests  (+5 from longjmp hardening vs day 1)
-phantasm-crypto: 30 tests  (+10 from v2 envelope + MAC + HKDF key split vs day 1)
-phantasm-stc:    16 tests  (9 single-layer + 6 double-layer + 1 bits/L1 efficiency)
-phantasm-channel: 16 tests (NEW sub-crate — MINICER + ROAST + Twitter profile)
-phantasm-ecc:     9 tests
-phantasm-cost:   10 tests
-phantasm-core:   42 tests  (23 Tier 1 + 9 research_raw + 10 hash_guard)
-phantasm-cost:   17 tests  (+7 from J-UNIWARD with DB8 filter orthonormality gate)
-phantasm-cli:    21 tests  (+7 from Tier 2 integration: channel-adapter, hash-guard, combined, analyze sensitivity)
-phantasm-bench:  39 tests  (Tier 1 37 + 2 from research-curve smoke tests)
-phantasm-ecc:    9 tests  (unchanged)
-Total:          211 tests — all passing (Tier 1: 160, day 1: 132)
+phantasm-image:   22 tests  (7 unit + 15 integration; +5 from longjmp hardening vs day 1)
+phantasm-crypto:  30 tests  (+10 from v2 envelope + MAC + HKDF key split vs day 1)
+phantasm-stc:     16 tests  (9 single-layer + 6 double-layer + 1 bits/L1 efficiency)
+phantasm-channel: 16 tests  (NEW Tier 2 sub-crate — MINICER + ROAST + Twitter profile)
+phantasm-cost:    17 tests  (+7 from J-UNIWARD with DB8 filter orthonormality gate)
+phantasm-core:    50 tests  (39 unit + 8 content_adaptive integration + 3 integration; includes research_raw, hash_guard, salt stability, sensitive cover refusal, tier capacity)
+phantasm-ecc:      9 tests
+phantasm-cli:     25 tests  (4 unit + 21 integration; +7 from Tier 2 integration + N1 channels formatter + N5 pHash hex + j-uniward roundtrip)
+phantasm-bench:   39 tests  (2 unit + 1 cli_smoke + 7 eval_corpus + 12 metrics + 17 stealth)
+Total:           224 tests — all passing (Tier 1 alpha: 160, Tier 2 research: 211, post-polish v0.1.0: 224, day 1 baseline: 132)
 ```
 
 ---
