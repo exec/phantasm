@@ -57,6 +57,21 @@ enum Commands {
         #[arg(long, default_value = "uerd")]
         cost_function: CostFunctionChoice,
 
+        /// Channel stabilization profile. `none` (default) preserves pre-v0.1.0-alpha
+        /// behavior. `twitter` enables MINICER+ROAST stabilization at a ~10-20%
+        /// capacity cost but produces stego that survives Twitter re-encoding.
+        /// Extract must be invoked with the same `--channel` value.
+        #[arg(long, default_value = "none")]
+        channel_adapter: ChannelAdapterChoice,
+
+        /// Perceptual-hash guard. `none` (default) preserves pre-v0.1.0-alpha
+        /// behavior. `phash` or `dhash` constrain the STC encoder away from
+        /// coefficients whose modification would flip the selected perceptual-hash
+        /// bits, preserving the cover's hash. Extract must be invoked with the
+        /// same `--hash-guard` value.
+        #[arg(long, default_value = "none")]
+        hash_guard: HashGuardChoice,
+
         /// Multi-layer payload (passphrase:path)
         #[arg(long)]
         layer: Option<Vec<String>>,
@@ -75,6 +90,20 @@ enum Commands {
         /// Path to write recovered payload
         #[arg(short, long)]
         output: PathBuf,
+
+        /// Channel stabilization profile used at embed time. Must match the
+        /// `--channel` value passed to `phantasm embed`. Currently accepted for
+        /// forward-compatibility; v0.1 extract derives positions geometrically
+        /// and does not consult this flag.
+        #[arg(long, default_value = "none")]
+        channel_adapter: ChannelAdapterChoice,
+
+        /// Perceptual-hash guard used at embed time. Must match the
+        /// `--hash-guard` value passed to `phantasm embed`. Currently accepted
+        /// for forward-compatibility; v0.1 extract derives positions
+        /// geometrically and does not consult this flag.
+        #[arg(long, default_value = "none")]
+        hash_guard: HashGuardChoice,
     },
 
     /// Report image capacity and characteristics
@@ -156,6 +185,41 @@ impl std::fmt::Display for CostFunctionChoice {
     }
 }
 
+/// Channel stabilization choice. Separate from the legacy `--channel` flag
+/// (which selects a [`ChannelProfile`] descriptor) because the two serve
+/// different purposes and must not collide with the existing flag's default.
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum ChannelAdapterChoice {
+    None,
+    Twitter,
+}
+
+impl std::fmt::Display for ChannelAdapterChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "none"),
+            Self::Twitter => write!(f, "twitter"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum HashGuardChoice {
+    None,
+    Phash,
+    Dhash,
+}
+
+impl std::fmt::Display for HashGuardChoice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "none"),
+            Self::Phash => write!(f, "phash"),
+            Self::Dhash => write!(f, "dhash"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum StealthChoice {
     Max,
@@ -196,6 +260,8 @@ fn main() -> Result<()> {
             channel,
             stealth,
             cost_function,
+            channel_adapter,
+            hash_guard,
             layer,
         } => embed::run(embed::EmbedArgs {
             input,
@@ -205,6 +271,8 @@ fn main() -> Result<()> {
             channel: *channel,
             stealth: *stealth,
             cost_function: *cost_function,
+            channel_adapter: *channel_adapter,
+            hash_guard: *hash_guard,
             layer,
         })?,
 
@@ -212,7 +280,9 @@ fn main() -> Result<()> {
             input,
             passphrase,
             output,
-        } => extract::run(input, passphrase, output)?,
+            channel_adapter,
+            hash_guard,
+        } => extract::run(input, passphrase, output, *channel_adapter, *hash_guard)?,
 
         Commands::Analyze { path, json } => analyze::run(path, *json)?,
 

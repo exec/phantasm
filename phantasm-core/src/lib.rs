@@ -13,10 +13,12 @@ pub mod stealth;
 pub use channel::{ChannelProfile, ChromaSub, OverflowStrategy};
 pub use content_adaptive::ContentAdaptiveOrchestrator;
 pub use error::CoreError;
+pub use hash_guard::{HashGuardReport, HashType, SensitivityTier};
 pub use minimal::MinimalOrchestrator;
 pub use orchestrator::{
     ChannelCompatibility, CoverAnalysis, CoverFormat, EmbedResult, Orchestrator, StubOrchestrator,
 };
+pub use phantasm_channel::{ChannelAdapter, StabilizationReport, TwitterProfile};
 pub use plan::{EmbedPlan, HashSensitivity};
 pub use stealth::StealthTier;
 

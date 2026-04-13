@@ -1734,6 +1734,7 @@ dependencies = [
  "log",
  "phantasm-core",
  "phantasm-cost",
+ "phantasm-image",
  "predicates",
  "tempfile",
 ]
@@ -1743,6 +1744,8 @@ name = "phantasm-core"
 version = "0.1.0"
 dependencies = [
  "image 0.25.10",
+ "log",
+ "phantasm-channel",
  "phantasm-cost",
  "phantasm-crypto",
  "phantasm-ecc",

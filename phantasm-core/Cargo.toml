@@ -11,9 +11,11 @@ phantasm-crypto = { path = "../phantasm-crypto" }
 phantasm-stc = { path = "../phantasm-stc" }
 phantasm-ecc = { path = "../phantasm-ecc" }
 phantasm-cost = { path = "../phantasm-cost" }
+phantasm-channel = { path = "../phantasm-channel" }
 rand = "0.8"
 rand_chacha = "0.3"
 sha2 = "0.10"
+log = "0.4"
 
 [dev-dependencies]
 image = "0.25"

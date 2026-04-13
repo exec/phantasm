@@ -3,12 +3,14 @@ use log::warn;
 use std::path::{Path, PathBuf};
 
 use phantasm_core::{
-    ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity, Orchestrator,
-    StealthTier,
+    ChannelAdapter, ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity,
+    HashType, Orchestrator, StealthTier, TwitterProfile,
 };
 use phantasm_cost::{DistortionFunction, Uerd, Uniform};
 
-use crate::{ChannelChoice, CostFunctionChoice, StealthChoice};
+use crate::{
+    ChannelAdapterChoice, ChannelChoice, CostFunctionChoice, HashGuardChoice, StealthChoice,
+};
 
 pub struct EmbedArgs<'a> {
     pub input: &'a Path,
@@ -18,6 +20,8 @@ pub struct EmbedArgs<'a> {
     pub channel: ChannelChoice,
     pub stealth: StealthChoice,
     pub cost_function: CostFunctionChoice,
+    pub channel_adapter: ChannelAdapterChoice,
+    pub hash_guard: HashGuardChoice,
     pub layer: &'a Option<Vec<String>>,
 }
 
@@ -30,6 +34,8 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         channel,
         stealth,
         cost_function,
+        channel_adapter,
+        hash_guard,
         layer,
     } = args;
     let has_payload = payload.is_some();
@@ -108,14 +114,39 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         CostFunctionChoice::Uniform => Box::new(Uniform),
         CostFunctionChoice::Uerd => Box::new(Uerd),
     };
-    let orchestrator = ContentAdaptiveOrchestrator::new(distortion);
+    let mut orchestrator = ContentAdaptiveOrchestrator::new(distortion);
+
+    // Hash guard must be applied BEFORE channel stabilization so the guarded
+    // pHash/dHash matches the ORIGINAL cover — the user's stealth intent is
+    // invisibility against a database keyed on the original image. (The
+    // orchestrator enforces this ordering internally.)
+    match hash_guard {
+        HashGuardChoice::None => {}
+        HashGuardChoice::Phash => {
+            orchestrator = orchestrator.with_hash_guard(HashType::PHash);
+        }
+        HashGuardChoice::Dhash => {
+            orchestrator = orchestrator.with_hash_guard(HashType::DHash);
+        }
+    }
+
+    match channel_adapter {
+        ChannelAdapterChoice::None => {}
+        ChannelAdapterChoice::Twitter => {
+            let adapter: Box<dyn ChannelAdapter> = Box::new(TwitterProfile::default());
+            orchestrator = orchestrator.with_channel_adapter(adapter);
+        }
+    }
+
     let result = orchestrator.embed(input, &payload_bytes, passphrase_str, &plan, output)?;
 
     println!(
-        "Embedded {} bytes into {} (cost_function={})",
+        "Embedded {} bytes into {} (cost_function={}, channel_adapter={}, hash_guard={})",
         result.bytes_embedded,
         output.display(),
-        cost_function
+        cost_function,
+        channel_adapter,
+        hash_guard,
     );
     println!("Capacity used: {:.1}%", result.capacity_used_ratio * 100.0);
 

@@ -1,11 +1,13 @@
 use std::path::Path;
 
+use log::info;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha12Rng;
 use sha2::{Digest, Sha256};
 
+use phantasm_channel::ChannelAdapter;
 use phantasm_cost::CostMap;
 use phantasm_crypto::{
     derive_locations_key, open, seal, ContentType, CryptoError, Envelope, KdfParams,
@@ -15,6 +17,7 @@ use phantasm_image::jpeg::{self, JpegCoefficients};
 use phantasm_stc::{StcConfig, StcDecoder, StcEncoder};
 
 use crate::error::CoreError;
+use crate::hash_guard::{self, HashType};
 use crate::orchestrator::EmbedResult;
 
 pub(crate) fn embed_with_costs(
@@ -24,9 +27,78 @@ pub(crate) fn embed_with_costs(
     costs: &CostMap,
     output_path: &Path,
 ) -> Result<EmbedResult, CoreError> {
+    embed_with_costs_and_hooks(
+        cover_path,
+        payload,
+        passphrase,
+        costs,
+        output_path,
+        None,
+        None,
+    )
+}
+
+pub(crate) fn embed_with_costs_and_hooks(
+    cover_path: &Path,
+    payload: &[u8],
+    passphrase: &str,
+    costs: &CostMap,
+    output_path: &Path,
+    hash_guard: Option<HashType>,
+    channel_adapter: Option<&dyn ChannelAdapter>,
+) -> Result<EmbedResult, CoreError> {
     let mut jpeg = jpeg::read(cover_path)?;
 
-    let salt = image_salt(&jpeg);
+    // The cost map arrives pre-computed from the distortion function. If
+    // either the hash guard or the channel adapter is active we need to
+    // mutate a clone — hash guard adds wet positions, and the adapter adds
+    // wet positions plus discounts stabilized positions. Both operate on
+    // the same `CostMap` shape (matching `positions` ordering).
+    let mut working_costs: CostMap = costs.clone();
+
+    if let Some(ht) = hash_guard {
+        let report = hash_guard::apply_hash_guard(&mut working_costs, &jpeg, ht);
+        info!(
+            "hash_guard: tier={:?} bits_guarded={} wet_added={}",
+            report.sensitivity_tier, report.hash_bits_guarded, report.wet_positions_added
+        );
+    }
+
+    if let Some(adapter) = channel_adapter {
+        let report = adapter
+            .stabilize(&mut jpeg, 0, &mut working_costs)
+            .map_err(|e| CoreError::InvalidData(format!("channel adapter error: {e}")))?;
+        info!(
+            "channel_adapter[{}]: stabilized={} wet_positions={} sacrificed_blocks={} survival={:.3}",
+            adapter.name(),
+            report.stabilized_count,
+            report.wet_positions.len(),
+            report.sacrificed_blocks,
+            report.survival_rate_estimate
+        );
+    }
+
+    info!("pipeline: final cost map size = {}", working_costs.len());
+
+    embed_prepared(
+        &mut jpeg,
+        payload,
+        passphrase,
+        &working_costs,
+        cover_path,
+        output_path,
+    )
+}
+
+fn embed_prepared(
+    jpeg: &mut JpegCoefficients,
+    payload: &[u8],
+    passphrase: &str,
+    costs: &CostMap,
+    cover_path: &Path,
+    output_path: &Path,
+) -> Result<EmbedResult, CoreError> {
+    let salt = image_salt(jpeg);
 
     let metadata = PayloadMetadata {
         filename: None,
@@ -100,7 +172,7 @@ pub(crate) fn embed_with_costs(
         }
     }
 
-    jpeg::write_with_source(&jpeg, cover_path, output_path)?;
+    jpeg::write_with_source(jpeg, cover_path, output_path)?;
 
     Ok(EmbedResult {
         bytes_embedded: payload.len(),
