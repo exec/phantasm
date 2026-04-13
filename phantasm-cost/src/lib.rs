@@ -9,11 +9,16 @@
 //! - [`uerd::Uerd`] — Uniform Embedding Revisited Distortion (Guo, Ni, Shi 2015).
 //!   JPEG-native, block-complexity-driven. Simpler than UNIWARD and competitive
 //!   on security benchmarks.
+//! - [`juniward::Juniward`] — J-UNIWARD (Holub & Fridrich 2014). Wavelet-domain
+//!   relative-distortion cost, the academic baseline for content-adaptive
+//!   JPEG steganography.
 //!
-//! Future implementations may include J-UNIWARD (Holub & Fridrich 2014),
-//! J-MiPOD (Cogranne, Giboulot, Bas 2020), HILL, etc.
+//! Future implementations may include J-MiPOD (Cogranne, Giboulot, Bas 2020),
+//! HILL, etc.
 
+pub mod juniward;
 pub mod uerd;
+pub use juniward::Juniward;
 pub use uerd::Uerd;
 
 use phantasm_image::jpeg::JpegCoefficients;

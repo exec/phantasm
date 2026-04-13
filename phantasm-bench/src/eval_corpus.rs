@@ -13,6 +13,7 @@ use phantasm_core::content_adaptive::ContentAdaptiveOrchestrator;
 use phantasm_core::orchestrator::Orchestrator;
 use phantasm_core::plan::{EmbedPlan, HashSensitivity};
 use phantasm_core::stealth::StealthTier;
+use phantasm_cost::juniward::Juniward;
 use phantasm_cost::uerd::Uerd;
 use phantasm_cost::{DistortionFunction, Uniform};
 use phantasm_image::jpeg::read as jpeg_read;
@@ -299,6 +300,7 @@ fn make_embed_plan() -> EmbedPlan {
 fn cost_fn_from_name(name: &str) -> Box<dyn DistortionFunction> {
     match name {
         "uerd" => Box::new(Uerd),
+        "j-uniward" | "juniward" => Box::new(Juniward),
         _ => Box::new(Uniform),
     }
 }
