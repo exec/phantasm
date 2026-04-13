@@ -5,6 +5,8 @@ pub mod minimal;
 pub mod orchestrator;
 pub(crate) mod pipeline;
 pub mod plan;
+#[doc(hidden)]
+pub mod research_raw;
 pub mod stealth;
 
 pub use channel::{ChannelProfile, ChromaSub, OverflowStrategy};
