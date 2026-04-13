@@ -39,7 +39,11 @@ All three cost functions sit near the Fridrich RS false-positive floor (~17.5%) 
 
 - **Fridrich RS**: native Rust port of Aletheia's reference Fridrich 2001 RS attack, validated to reproduce Aletheia's `0.053` detection on its own sample stego at `0.0513` (within 0.002 tolerance). Per-channel max over (R, G, B), threshold 0.05.
 - **SRM-lite L2**: 4 residuals × 7×7 co-occurrence matrices = 196-feature vector, L2 distance between cover and stego feature vectors. Threshold-free distance metric.
-- **Research corpus**: 198 Picsum.photos JPEGs with seeds `phantasm-0001` through `phantasm-0198`, manifest with SHA-256 hashes tracked in `research-corpus/manifest.json`. Corpus is regenerable from the manifest.
+- **Research corpus**: 198 Picsum.photos JPEGs with seeds `phantasm-0001` through `phantasm-0198`, across three quality factors (75/85/90) and three sizes (512×512, 720×680, 1024×1024). The image files themselves are gitignored — only the manifest (with source URL, seed, dimensions, QF, and SHA-256 per image) is tracked. Fetch the full corpus with:
+  ```bash
+  cargo run --release -p phantasm-image --example fetch_corpus
+  ```
+  See [`research-corpus/README.md`](research-corpus/README.md) for corpus-level details.
 - All numbers reproduce within ~2 percentage points across day-1, day-2, and v0.1.0 runs.
 
 ## What phantasm does
@@ -183,9 +187,14 @@ cargo test --workspace       # unit + integration tests across all crates
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 
-# Corpus-scale evaluation (needs a corpus of JPEGs, e.g. research-corpus/)
+# Fetch the 198-image research corpus (Picsum.photos, ~22 MB, ~2 min).
+# Only needed once — the corpus is gitignored but regenerable from
+# research-corpus/manifest.json.
+cargo run --release -p phantasm-image --example fetch_corpus
+
+# Corpus-scale evaluation against the 198-image research corpus.
 cargo run --release -p phantasm-bench -- eval-corpus \
-    --corpus path/to/jpeg/dir \
+    --corpus research-corpus \
     --cost-functions uniform,uerd,j-uniward \
     --payload /path/to/payload.bin
 
