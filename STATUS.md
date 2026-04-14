@@ -1,10 +1,11 @@
 # Phantasm — Project Status
 
-**Date:** 2026-04-14 (v0.1.0 shipped)
-**Session length:** ~13 hours across 2 days
-**Workspace state:** `cargo test --workspace` 224 passing / 0 failing, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo fmt --all --check` clean
-**Git state:** `v0.1.0-alpha` tagged at commit `82b89a4`. `v0.1.0` tagged at commit `1617dad`. Pushed to `https://github.com/exec/phantasm` (private repo, owner `exec`). Two cosmetic README commits past the v0.1.0 tag in `main` (logo + heading drop) — not part of the tag.
-**v0.1.0 shipping headline:** UERD cuts classical Fridrich RS detection rate from **66.7% → 26.8%** at 198-image corpus scale (40 pp drop, 2.5× reduction, paired 195/198). Mean file-size delta is NEGATIVE under UERD at −1,321 B per image (stego smaller than cover). See §5 Finding 8 for the full numbers.
+**Date:** 2026-04-13 (v0.2.0 shipped)
+**Session length:** ~13 hours v0.1.0 + additional ML-steganalysis research drive for v0.2.0
+**Workspace state:** `cargo test --workspace` 235+ passing / 0 failing, `cargo clippy` clean, `cargo fmt` clean
+**Git state:** `v0.1.0-alpha` at commit `82b89a4`, `v0.1.0` at commit `1617dad`, **`v0.2.0` at the release commit of this update**. Pushed to `https://github.com/exec/phantasm`.
+**v0.1.0 shipping headline (preserved):** UERD cuts classical Fridrich RS detection rate from **66.7% → 26.8%** at 198-image corpus scale (40 pp drop, 2.5× reduction, paired 195/198). See §5 Finding 8.
+**v0.2.0 shipping headline:** Six-update modern-CNN steganalysis evaluation (Updates 1-6 in `ML_STEGANALYSIS.md`). Honest characterization of L1 detection across the adversary spectrum: J-UNIWARD evades off-the-shelf JIN-SRNet at 16.2% detection (vs 28.3% baseline); a phantasm-trained multi-passphrase CNN fine-tune catches it at 89.9%. New `--cost-subset` hidden flag produces a 6.2 pp L1 improvement against off-the-shelf detectors. Three-layer threat-model framing (L1 detection / L2 position recovery / L3 AEAD decryption) makes explicit that **phantasm's security argument rests on L2+L3** (standard cryptographic primitives), not L1 stealth. No breaking changes to the v0.1.0 CLI or envelope format. See §5 Finding 9 for the full numbers.
 **Five-pillar thesis:** All reachable via the `phantasm` CLI in v0.1.0:
   1. **Content-adaptive cost functions** — `--cost-function {uniform, uerd, j-uniward}`
   2. **Syndrome-trellis coding** — published DDE Lab H̃ tables (Filler 2011) + conditional-probability double-layer at 0.995× bits/L1

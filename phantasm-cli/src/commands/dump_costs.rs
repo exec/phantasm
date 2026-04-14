@@ -19,8 +19,7 @@ const VERSION: u32 = 3;
 const BLOCK: usize = 8;
 
 pub fn run(input: &Path, output: &Path, cost_function: CostFunctionChoice) -> Result<()> {
-    let jpeg = jpeg::read(input)
-        .with_context(|| format!("failed to read {}", input.display()))?;
+    let jpeg = jpeg::read(input).with_context(|| format!("failed to read {}", input.display()))?;
 
     let distortion: Box<dyn DistortionFunction> = match cost_function {
         CostFunctionChoice::Uniform => Box::new(Uniform),

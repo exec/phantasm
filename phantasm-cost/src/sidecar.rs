@@ -47,7 +47,9 @@ pub struct Sidecar {
 impl Sidecar {
     /// Construct a sidecar cost source pointing at the given path.
     pub fn new<P: Into<PathBuf>>(path: P) -> Self {
-        Self { sidecar_path: path.into() }
+        Self {
+            sidecar_path: path.into(),
+        }
     }
 
     fn load(&self) -> SidecarData {
@@ -137,7 +139,10 @@ fn load_sidecar(path: &Path) -> Result<SidecarData, String> {
     let _orig_w = u32::from_le_bytes(bytes[16..20].try_into().unwrap()) as usize;
     let block_size = u32::from_le_bytes(bytes[20..24].try_into().unwrap()) as usize;
     if block_size != BLOCK {
-        return Err(format!("block_size {} not supported (expected 8)", block_size));
+        return Err(format!(
+            "block_size {} not supported (expected 8)",
+            block_size
+        ));
     }
     let n_blocks_y = u32::from_le_bytes(bytes[24..28].try_into().unwrap()) as usize;
     let n_blocks_x = u32::from_le_bytes(bytes[28..32].try_into().unwrap()) as usize;
@@ -148,18 +153,30 @@ fn load_sidecar(path: &Path) -> Result<SidecarData, String> {
     if bytes.len() != expected_size {
         return Err(format!(
             "size mismatch: file is {} bytes, expected {} (header {} + {} arrays × {} floats × 4)",
-            bytes.len(), expected_size, HEADER_BYTES, n_arrays, n_floats
+            bytes.len(),
+            expected_size,
+            HEADER_BYTES,
+            n_arrays,
+            n_floats
         ));
     }
 
     let costs_plus = parse_floats(&bytes[HEADER_BYTES..], n_floats);
     let costs_minus = if version == VERSION_V3 {
-        Some(parse_floats(&bytes[HEADER_BYTES + n_floats * 4..], n_floats))
+        Some(parse_floats(
+            &bytes[HEADER_BYTES + n_floats * 4..],
+            n_floats,
+        ))
     } else {
         None
     };
 
-    Ok(SidecarData { n_blocks_y, n_blocks_x, costs_plus, costs_minus })
+    Ok(SidecarData {
+        n_blocks_y,
+        n_blocks_x,
+        costs_plus,
+        costs_minus,
+    })
 }
 
 #[cfg(test)]
@@ -229,8 +246,12 @@ mod tests {
         assert_eq!(data.costs_plus.len(), 4 * 4 * 64);
         let cm = data.costs_minus.as_ref().expect("v3 has costs_minus");
         assert_eq!(cm.len(), 4 * 4 * 64);
-        for c in &data.costs_plus { assert_eq!(*c, 1.5); }
-        for c in cm { assert_eq!(*c, 0.7); }
+        for c in &data.costs_plus {
+            assert_eq!(*c, 1.5);
+        }
+        for c in cm {
+            assert_eq!(*c, 0.7);
+        }
         std::fs::remove_file(&tmp).ok();
     }
 

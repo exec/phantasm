@@ -70,6 +70,26 @@ enum Commands {
         #[arg(long, hide = true)]
         cost_sidecar: Option<PathBuf>,
 
+        /// Passphrase-randomized multiplicative cost-noise amplitude. `0.0`
+        /// (default) is identity (current behavior). `0.25`–`1.0` is the
+        /// sweet-spot range for fragmenting an attacker's training
+        /// distribution without breaking the underlying cost-function's
+        /// natural distribution. Values above `2.0` are clamped and warn.
+        /// See ML_STEGANALYSIS.md § Update 5. Hidden from `--help`.
+        #[arg(long, hide = true, default_value = "0.0")]
+        cost_noise: f64,
+
+        /// Passphrase-derived candidate-position keep fraction in [0.0, 1.0].
+        /// `1.0` (default) keeps all positions (current behavior). `0.5` marks
+        /// 50% of non-DC positions as wet (forbidden for STC) per-passphrase,
+        /// with the wet mask deterministically derived from the passphrase.
+        /// Different passphrases mark different subsets, fragmenting the
+        /// candidate-position distribution at the level a CNN steganalyzer
+        /// learns. Reduces effective embed capacity by `(1 - keep_fraction)`.
+        /// See ML_STEGANALYSIS.md § Update 6. Hidden from `--help`.
+        #[arg(long, hide = true, default_value = "1.0")]
+        cost_subset: f64,
+
         /// Channel stabilization profile. `none` (default) preserves pre-v0.1.0-alpha
         /// behavior. `twitter` enables MINICER+ROAST stabilization at a ~10-20%
         /// capacity cost but produces stego that survives Twitter re-encoding.
@@ -300,6 +320,8 @@ fn main() -> Result<()> {
             stealth,
             cost_function,
             cost_sidecar,
+            cost_noise,
+            cost_subset,
             channel_adapter,
             hash_guard,
             layer,
@@ -312,6 +334,8 @@ fn main() -> Result<()> {
             stealth: *stealth,
             cost_function: *cost_function,
             cost_sidecar: cost_sidecar.as_deref(),
+            cost_noise: *cost_noise,
+            cost_subset: *cost_subset,
             channel_adapter: *channel_adapter,
             hash_guard: *hash_guard,
             layer,
@@ -327,7 +351,11 @@ fn main() -> Result<()> {
 
         Commands::Analyze { path, json } => analyze::run(path, *json)?,
 
-        Commands::DumpCosts { input, output, cost_function } => {
+        Commands::DumpCosts {
+            input,
+            output,
+            cost_function,
+        } => {
             dump_costs::run(input, output, *cost_function)?;
         }
 

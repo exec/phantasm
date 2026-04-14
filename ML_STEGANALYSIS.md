@@ -1,8 +1,32 @@
 # Phantasm — Modern ML Steganalysis Evaluation
 
-**Status:** First-pass evaluation, 2026-04-13. Post-v0.1.0, scoping for v0.2.
+**Status:** v0.2 release, 2026-04-13. Complements the classical Fridrich RS results in STATUS.md §5 Finding 8 with a modern-CNN L1 detectability evaluation. Further L1 research is scheduled for v0.3.
 
-This document reports the first evaluation of phantasm v0.1.0 against modern (CNN-based) JPEG steganalysis. It complements the existing classical Fridrich RS results documented in STATUS.md §5 Finding 8.
+## Scope (read this first)
+
+Phantasm's security stack has three layers. **This document evaluates Layer 1 only.**
+
+| layer | what it defends | what an attacker needs to bypass |
+|---|---|---|
+| **L1 — Detection** | plausible deniability: *"does this JPEG contain hidden data at all?"* | a CNN steganalyzer that generalizes to phantasm's modification pattern |
+| **L2 — Position recovery** | message shape: *"which coefficients carry the syndrome bits, in what order?"* | the passphrase, to derive the ChaCha12 permutation of position indices (HKDF-keyed) |
+| **L3 — AEAD decryption** | payload confidentiality: *"what are the actual bytes?"* | the passphrase, again — gated by Argon2id(64 MiB / 3 iter / 4 threads) + XChaCha20-Poly1305 + HMAC-SHA256 pre-filter |
+
+L2 and L3 both gate on the passphrase but defend different things. L3 stops the attacker from decrypting what they have; L2 stops them from even *finding the syndrome bits in the right order* in the first place. Both rely on well-studied cryptographic primitives (HKDF-SHA256, ChaCha12 permutation, XChaCha20-Poly1305, Argon2id) that this research drive does not attempt to re-evaluate — they're the load-bearing security layers of phantasm, and they don't need ML steganalysis testing.
+
+**L1 is the weak layer** and is the only thing this document tests. The six updates below (Updates 1-6) collectively establish how L1 degrades against increasingly-adapted CNN attackers. The short summary:
+
+- **Against off-the-shelf detectors** (no phantasm-specific training): L1 mostly holds. Phantasm J-UNIWARD evades pretrained JIN-SRNet at 16.2% detection vs 7.1% cover false-positive baseline. Option D' (passphrase-derived position subset) can push this slightly lower (−6.2 pp) at the cost of a 23% embedding-failure rate.
+- **Against phantasm-trained detectors** (5 passphrases × 198 covers, ~95 sec fine-tune on a single RTX 5070): L1 folds at 85–90% detection. Both UERD and J-UNIWARD are detected at similar rates once the attacker has phantasm-specific training data.
+
+**What this means for phantasm users depends on the threat model:**
+
+- **Confidentiality threat model** ("I don't care if the adversary knows this image contains hidden data; I care that they can't read it"): L1 detectability does not gate the security argument. L2+L3 do, and those are standard primitives. Phantasm defends confidentiality as long as the passphrase is strong and the implementation has been security-reviewed — which is explicitly pending, see `STATUS.md` deferred-backlog.
+- **Plausible-deniability threat model** ("the mere fact that this JPEG contains hidden data is itself incriminating — border crossings, compliance checks, adversary with your image but not yet your passphrase"): L1 detectability matters, and the honest answer is that phantasm L1 degrades gracefully against off-the-shelf adversaries but does not defend against a phantasm-aware attacker. If your threat model is plausible deniability, treat the v0.2 evaluation as a characterization of exactly how weak that layer is.
+
+The original v0.1.0 `README.md` threat-model section already scopes phantasm as a confidentiality tool, not a plausible-deniability tool. **In the confidentiality framing, Updates 1-6 collectively produce an honest L1 number and that's enough** — phantasm's security argument has never rested on L1 stealth alone.
+
+---
 
 ## TL;DR
 
@@ -347,6 +371,89 @@ Even though Update 4 is a negative result, it's a useful one:
 
 Sidecar-cost infrastructure: `phantasm-cost/src/sidecar.rs`, `phantasm-cli/src/commands/dump_costs.rs`, plus the `--cost-function from-sidecar` and `--cost-sidecar` flags in `phantasm-cli/src/main.rs`. Python: `~/phantasm-eval/advcost/{compute_adv_costs_batch.py, compute_hybrid_costs.py, eval_advcost.py}` on fishbowl. Generated JUW baseline costs: `/tmp/phantasm-advcost/juw_costs/` on the dev Mac (198 sidecars). Adv-cost stegos and eval results: `/tmp/phantasm-advcost/stego/` and `~/phantasm-eval/advcost/eval_advcost.json`.
 
+## Update 5 — Option D passphrase-randomized cost noise (FAILED)
+
+Update 4 diagnosed that single-step adversarial gradients don't defend because the per-position gradient at a clean cover is a local linear approximation that breaks down after the first few coefficient flips. Update 5 takes a fundamentally different angle suggested by the user: instead of per-coefficient adversarial cost, **make the cost function itself vary per-passphrase** via deterministic multiplicative noise. The hypothesis: even with a constant base cost function, phantasm's modification pattern across different passphrases looks nearly identical at the population level (the cost map is a function of the cover alone, not the passphrase). That means an attacker's CNN only has to learn one underlying distribution regardless of how many passphrase variants they collect. Adding passphrase-derived cost noise should fragment that distribution, forcing the attacker to learn exponentially many patterns.
+
+### Setup
+
+A new `phantasm-cost::Noisy<D>` wrapper applies `cost'[k] = base_cost[k] * (1 + α * noise_k)` where `noise_k ∈ [-1, +1]` is SHA-256-keyed on the passphrase plus position. At `α=0.0` the wrapper is the identity; at `α=0.5` costs are wiggled within `[0.5, 1.5]` of the base value. Wired through a new `phantasm embed --cost-noise <amplitude>` flag (hidden) with bounds-checking (`[0, 2]`) and a warning at high values. The wrapper does not break extract because the STC decoder doesn't consult the cost map — it just reads parities at the passphrase-derived position list.
+
+Ran the same 5-passphrase, 198-cover, 10-epoch fine-tune as Update 3 with `--cost-noise 0.5` for both UERD and J-UNIWARD, then evaluated all detectors against (a) the original eval-198 non-noisy stegos and (b) the new noisy test split.
+
+### Result
+
+| detector | JUW non-noisy | JUW noisy | Δ | UERD non-noisy | UERD noisy | Δ |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline JIN-SRNet | 28.3% | 27.9% | −0.4p | 57.6% | 60.0% | +2.4p |
+| uerd_multi (no noise) | 77.8% | 85.4% | +7.6p | 85.4% | 90.8% | +5.5p |
+| juw_multi (target) | 89.9% | 95.5% | **+5.6p** | 72.7% | 77.0% | +4.2p |
+| uerd_noise05 (noise-trained) | 76.3% | 84.0% | +7.8p | 84.8% | 90.8% | +6.0p |
+| juw_noise05 (noise-trained) | 88.4% | 93.7% | +5.4p | 70.7% | 76.4% | +5.7p |
+
+**Cost-noise doesn't defend — it actively makes things slightly worse.** Every fine-tuned detector scores *higher* on noisy stegos than on non-noisy stegos (+4 to +8 pp). Noise-aware training doesn't help — `juw_noise05` detects noisy J-UNIWARD stego at 93.7% vs `juw_multi`'s 95.5%, neither of which is meaningfully lower than the non-noisy baseline.
+
+### Why
+
+The CNN learns at a *higher level* than per-position fingerprints. It doesn't memorize "this passphrase uses these exact coefficients"; it learns "what does a phantasm-modified JPEG DCT block look like statistically." Cost-noise reweights the cost ranking but every passphrase still ends up modifying coefficients drawn from the same content-adaptive high-frequency distribution as non-noisy phantasm. The noise itself adds a *new* statistical signature — the modifications become slightly less optimal per-J-UNIWARD (since the noise perturbs them away from the natural minimum), so each individual stego becomes *more* anomalous. The CNN picks up on that increased per-stego anomaly as signal.
+
+**The user's instinct was directionally correct** (fragment the attacker's training distribution) **but the implementation level was wrong** (cost noise operates *within* a fixed candidate set and doesn't change the distribution the CNN actually learns). The Update 6 follow-up attempts a deeper fragmentation by changing the candidate set itself.
+
+## Update 6 — Option D' passphrase-derived position subset (MIXED RESULT; ships as optional L1-hardening knob)
+
+The natural refinement of Update 5's failure: instead of perturbing costs *within* a fixed candidate set, use the passphrase to select a deterministic *subset* of usable positions before STC runs. Different passphrases forbid different halves of the non-DC positions (via wet-paper infinity costs), so the CNN sees a genuinely different candidate distribution per passphrase — not just a different cost ranking within the same distribution.
+
+### Setup
+
+A new `phantasm-cost::PassphraseSubset<D>` wrapper marks `(1 - keep_fraction)` of non-DC positions as wet via a SHA-256-keyed per-position bitmask. `keep_fraction=1.0` is the identity; `keep_fraction=0.5` marks 50% wet; and so on. Extract is unaffected because STC's decoder reads all positions regardless of wet marks — the wet-paper constraint is encoder-side only. Wired through `phantasm embed --cost-subset <keep_fraction>` (hidden).
+
+Embedded the 5-passphrase, 198-cover training set at `--cost-subset 0.6 --stealth low`. Fine-tuned both UERD and J-UNIWARD detectors on the subset data and ran a five-way eval against eval-198 (non-subset) and multi-subset (the new subset data).
+
+### Result
+
+| detector | eval-198 JUW (non-subset) | multi-subset JUW (avg) | Δ |
+|---|---:|---:|---:|
+| **baseline JIN-SRNet (off-the-shelf)** | 28.3% | **22.1%** | **−6.2 pp** ✓ defense win |
+| uerd_multi | 77.8% | 93.9% | +16.1 pp |
+| juw_multi (target) | 89.9% | 98.8% | +8.9 pp |
+| uerd_subset06 (subset-trained) | 41.4% | 71.2% | +29.8 pp |
+| juw_subset06 (subset-trained) | 75.3% | 96.5% | +21.2 pp |
+
+**This is the first and only approach in the entire drive that produced a defense-win delta**: against an off-the-shelf JIN-SRNet (which has no phantasm-specific training), subset-stego is detected at **22.1% vs 28.3%** — a real 6.2 pp improvement over regular J-UNIWARD. Against every fine-tuned detector, subset-stego is detected *more* strongly (+8.9 to +30 pp), because STC is forced to concentrate modifications in a smaller candidate pool and the per-stego density anomaly becomes easier for an adapted detector to flag.
+
+Two findings pulling in opposite directions:
+
+1. **Against off-the-shelf detectors, Option D' defends by 6.2 pp.** First and only approach in the drive to actually move an L1 detection rate DOWN.
+2. **Against phantasm-trained detectors, Option D' makes things worse.** Fine-tuned detectors love the density signature.
+
+**Costs:**
+- **23% embedding failure rate at `subset=0.6`**: 45/198 covers failed because STC couldn't find a solution with 40% of positions wet. Phantasm's STC at constraint height 7 tolerates up to ~40% wet before infeasibility; past that, STC throws "all positions are wet but the syndrome does not match the message." Not production-shippable at `0.6` — but it works at `0.7-0.9` with progressively lower fragmentation. The flag defaults to `1.0` (identity).
+- **Subset-trained detectors don't transfer well to non-subset stego** (uerd_subset06 gets 41.4% on non-subset J-UW vs uerd_multi's 77.8%). An attacker training specifically on subset data produces a narrower detector that doesn't generalize back to non-subset variants. This is actually consistent with the fragmentation hypothesis but doesn't translate into real stego-side defense because the same attacker can collect non-subset data separately.
+
+### What ships in v0.2
+
+`--cost-subset` and `--cost-noise` both ship as **hidden research flags** with bounds-checking and warnings. Neither is a load-bearing v0.2 feature. They exist for:
+1. Users who explicitly opt into the plausible-deniability threat model against off-the-shelf adversaries and accept the trade-offs documented here
+2. Future research — the infrastructure (Noisy / PassphraseSubset / Sidecar wrappers, `dump-costs` subcommand, PHCOST v2/v3 sidecar format) is the foundation for v0.3+ iterative adversarial approaches that take the diagnoses in Updates 4-6 seriously
+3. Experimental composition: `--cost-noise` + `--cost-subset` + `--cost-function` stack cleanly via wrapper composition, so callers can test combinations
+
+The CLI flags default to identity behavior. Existing scripts that don't set them continue to work exactly as before.
+
+### The honest v0.2 L1 story
+
+After Updates 1-6, here's the most compact true statement about phantasm's L1 detectability at 3 KB payload (~0.2 bpnzac) on Picsum covers:
+
+| threat | L1 detection rate | defense level |
+|---|---|---|
+| Classical Fridrich RS | 26.8% (UERD) / 30.3% (J-UNIWARD) | strong (-40 pp vs Uniform LSB) |
+| Modern off-the-shelf CNN (JIN-SRNet) | 28.3% (J-UW) / 22.1% (J-UW + subset=0.6) | moderate; subset flag adds 6.2 pp |
+| Phantasm-trained CNN (single-passphrase fine-tune) | 54.5% (J-UW) | weak |
+| Phantasm-trained CNN (multi-passphrase fine-tune) | **89.9% (J-UW) / 98.8% (J-UW + subset)** | **fails** |
+
+L1 gracefully degrades from "strong" to "fails" across the threat-model spectrum. Against the strongest threat (phantasm-trained CNN with sufficient data), **L1 provides ≈10% stealth at most** — roughly equivalent to the cover-source mismatch confound. Against anything short of that, phantasm's L1 is meaningfully better than naive LSB and competitive with the academic state of the art for hand-designed cost functions.
+
+**Phantasm's v0.2 security argument does not rest on L1.** It rests on L2 (passphrase-keyed position permutation) and L3 (AEAD + Argon2id), both of which use standard primitives with well-understood security properties. L1 is the bonus stealth layer, characterized honestly, with a narrow optional knob (`--cost-subset`) for users who want to squeeze a little more out against off-the-shelf adversaries.
+
 ## v0.2 research direction proposal
 
 Based on these results, three credible v0.2 directions, in rough priority order:
@@ -387,18 +494,27 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 
 **What this enables (best case):** A defensible claim that phantasm's adv-cost mode beats a state-of-the-art detector trained specifically on phantasm output. That is the only research result that would extend phantasm's defended threat model beyond "off-the-shelf and lightly-adapted detectors." The claim is also threat-model-honest: it doesn't pretend to defend against *unbounded* adversary adaptation, only against the specific deployed detector at training time.
 
-### Recommended path (updated after Updates 1+2+3)
+### Recommended path (v0.2 SHIPPED)
 
-**Option A** (docs + threat-model framing in CLI help) — **DONE** (commit `c450aa6`).
-**Option B** (UERD fine-tune experiment) — **DONE, see § Update 1.**
-**Option B'** (validate asymmetry via symmetric J-UNIWARD fine-tune) — **DONE, see § Update 2.**
-**Option B''** (extended dataset hardening, multi-passphrase) — **DONE, see § Update 3. Demolished the asymmetry; both costs reach 85-90% detection.**
-**Option B'''** (cover-source diversity follow-up, 500 covers) — not yet attempted.
-**Option C, single-step** (adversarial costs via gradient at the cover point) — **DONE, see § Update 4. FAILED.** Three variants tried (pure |grad|, sign-aware ReLU(±grad), J-UNIWARD-base × (1 + α × adv)). None pushed JUW-multi detection below the 89.9% J-UNIWARD baseline. Single-step gradient is a local linear approximation that breaks down after the first few coefficient flips.
-**Option C-iter** (iterative refinement, PGD-style: re-compute gradient at the partial stego, re-embed, repeat) — **next.** The infrastructure from Update 4 is the foundation; only the iteration loop needs to be added. ~10 minutes of work + a few iterations × ~30s wall-clock per iteration on the GPU. The standard approach in the adversarial-steganography literature.
-**Option C-e2e** (end-to-end differentiable embedding) — research-grade, days of work, fragile. Last resort.
+- **Option A** — docs + threat-model framing in CLI help. **DONE** (commit `c450aa6`).
+- **Option B** — UERD fine-tune experiment. **DONE**, Update 1.
+- **Option B'** — symmetric J-UNIWARD fine-tune, refutes Update 1's asymmetry claim. **DONE**, Update 2.
+- **Option B''** — multi-passphrase extended training, demolishes the gap. **DONE**, Update 3.
+- **Option C (single-step adversarial costs)** — **DONE, FAILED**, Update 4. Infrastructure preserved.
+- **Option D (passphrase-randomized cost noise)** — **DONE, FAILED**, Update 5.
+- **Option D' (passphrase-derived position subset)** — **DONE, MIXED**, Update 6. Ships as hidden `--cost-subset` flag; provides a 6.2 pp defense against off-the-shelf detectors at the cost of per-stego density anomaly against phantasm-trained ones and a 23% embed-failure rate at `subset=0.6`.
 
-Total scope to v0.2 release: indeterminate until Option C-iter is tried. If C-iter works, ~1 week of integration + polish. If C-iter also fails, phantasm has no defense against fully-adapted attackers and the v0.2 narrative pivots to scope-limited threat models plus channel adapter / ECC improvements.
+### Deferred to v0.3 (further L1 research)
+
+- **Option C-iter** — iterative gradient refinement (PGD-style). Re-compute the detector gradient at the *partial* stego, re-embed, repeat for a few rounds. Infrastructure from Update 4 is the foundation; only the iteration loop needs to be added.
+- **Option B'''** — cover-source diversity hardening (500+ unique covers via Picsum or BOSSbase). Tests whether Update 3's numbers were a cover-pool artifact.
+- **Option D''** — compose `--cost-noise` + `--cost-subset` and search for a combination that retains the Update 6 off-the-shelf defense without the density-anomaly penalty.
+- **Composable L1 hardening framework** — the Noisy / PassphraseSubset / Sidecar wrappers are infrastructure for a "cost function pipeline" in v0.3.
+- **End-to-end differentiable embedding** — replace STC with a differentiable embedding layer so the whole chain can be optimized together. Most ambitious; v0.4 candidate.
+
+### Out of scope for the L1 research track entirely
+
+L2 and L3 testing does not belong in `ML_STEGANALYSIS.md`. That's a separate external-security-review track — the crypto layer uses standard primitives with well-understood security properties that shouldn't be re-validated via ML steganalysis techniques.
 
 ## Reproduction
 

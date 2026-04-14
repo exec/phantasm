@@ -17,9 +17,13 @@
 //! HILL, etc.
 
 pub mod juniward;
+pub mod noisy;
+pub mod passphrase_subset;
 pub mod sidecar;
 pub mod uerd;
 pub use juniward::Juniward;
+pub use noisy::{Noisy, MAX_NOISE_AMPLITUDE};
+pub use passphrase_subset::{PassphraseSubset, MIN_KEEP_FRACTION};
 pub use sidecar::Sidecar;
 pub use uerd::Uerd;
 
