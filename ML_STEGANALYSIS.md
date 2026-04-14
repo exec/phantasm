@@ -14,6 +14,8 @@ Tested phantasm at the v0.1.0 default payload (3 KB, ~0.2 bpnzac) on 198 Picsum 
 
 **Update 3 (Option B'' extended dataset, same day):** Re-ran both fine-tunes with 5 passphrases per cover (5× larger training set as passphrase-variation augmentation). UERD detection lifts to 85.4% and J-UNIWARD detection lifts to **89.9%** — J-UNIWARD is now slightly *more* detectable than UERD at the worst-case attacker-adaptation level. The 23 pp J-UNIWARD-vs-UERD gap from Update 2 is gone. **In the worst case, against an attacker who has trained specifically on phantasm output with sufficient data, neither cost function defends.** The "use J-UNIWARD" recommendation is now scope-limited: it holds against off-the-shelf and lightly-adapted detectors, not against a fully-adapted attacker. See § Update 3 below.
 
+**Update 4 (Option C single-step adversarial costs, same day):** Built the full sidecar-cost infrastructure (Python computes per-coefficient costs, Rust embed loads them via a new `--cost-function from-sidecar` flag) and ran three single-step gradient-based cost variants against the J-UW-multi target detector: pure |gradient|, sign-aware ReLU(±gradient), and J-UNIWARD-base × (1 + α × adv_signal) hybrid at α=2 and α=10. **None of them moved the needle.** Pure adversarial costs were dramatically WORSE (98-99% detection vs 89.9% baseline — the modifications moved out of J-UNIWARD's natural distribution and the detector flagged them as anomalous). Hybrid costs were statistically indistinguishable from pure J-UNIWARD (~89-91% detection at all alpha values). **Single-step gradient costs are fundamentally insufficient against well-trained detectors** — the linear approximation breaks down after the first few coefficient flips, exactly as the ADV-EMB literature documents. The infrastructure works; the gradient strategy doesn't. Iterative refinement is the standard next step. See § Update 4 below for the full attempt log.
+
 | Detector | Cover (FP) | Uniform | UERD | J-UNIWARD |
 |---|---:|---:|---:|---:|
 | **Fridrich RS** (classical, v0.1.0) | — | 66.7% | 26.8% | 30.3% |
@@ -282,6 +284,69 @@ Updates 1 and 2 both used a single-passphrase training set (288 examples per fin
 
 Five-way eval JSON: `~/phantasm-eval/finetune-multi-uerd/five_way_eval.json` on the dev GPU box. Multi-pass checkpoints: `~/phantasm-eval/finetune-multi-uerd/uerd_multi_best.pt` and `~/phantasm-eval/finetune-multi-juniward/juniward_multi_best.pt`.
 
+## Update 4 — Option C single-step adversarial costs (FAILED)
+
+The Option B/B'/B'' progression converged on a clear conclusion: hand-designed cost functions (UERD, J-UNIWARD) cannot defend against a fully-adapted CNN attacker. Update 3 named **Option C — adversarial costs targeting the J-UW-multi detector** as the only remaining v0.2 direction that could plausibly defend. This update is the first attempt at C, and it failed to defend. The infrastructure works; the cost-function strategy is wrong.
+
+### What I built
+
+A complete sidecar-cost pipeline so out-of-tree research code can produce per-coefficient cost maps that the existing Rust embed pipeline consumes:
+
+1. **Python adversarial cost computer** (`compute_adv_costs_batch.py`): loads the J-UW-multi checkpoint as a differentiable distortion oracle, decodes a cover via PIL, computes the spatial-domain pixel gradient ∂(stego_logit)/∂(pixel) via PyTorch autograd on a 256×256 center crop, transports the gradient to DCT space via forward blockwise DCT on the Y channel, and writes a sidecar binary file. ~2.5 seconds for all 198 covers on the RTX 5070.
+2. **PHCOST sidecar binary format** (v2: single cost array, v3: separate `costs_plus` / `costs_minus` for sign-aware costs). 32-byte header + dense float32 cost grid.
+3. **Rust `phantasm_cost::Sidecar` distortion function**: implements `DistortionFunction`, reads PHCOST v2/v3 files, validates cover dimensions match, builds the standard `CostMap` interface that `ContentAdaptiveOrchestrator` already consumes. 5 unit tests.
+4. **Rust `phantasm dump-costs` subcommand** (hidden): dumps the per-coefficient cost map of any built-in distortion function (`uniform`, `uerd`, `j-uniward`) to a PHCOST v3 sidecar. Used by the hybrid-cost path to extract J-UNIWARD baseline costs into Python for combination with the adversarial signal.
+5. **Rust `phantasm embed --cost-function from-sidecar --cost-sidecar <path>`** (hidden flags): wires the sidecar cost source into the existing embed pipeline. Mutually-exclusive validation against the other cost functions.
+6. **Python hybrid cost computer** (`compute_hybrid_costs.py`): loads J-UNIWARD baseline costs from a `dump-costs` sidecar and combines with the adversarial signal as `cost_combined = juw_base × (1 + α × adv_signal)`. Tunable α.
+
+The infrastructure is solid. New tests: `phantasm-cost` 21 → 23 (sidecar v2 + v3 round-trip + bad-magic). Workspace tests 224 → 227 passing.
+
+### What I tried for the cost strategy
+
+Three single-step gradient-based variants, all evaluated on the same 198-cover Picsum eval set against all five detectors from Updates 1+2+3:
+
+| variant | UERD-multi det | **JUW-multi det (target)** | baseline JIN-SRNet det |
+|---|---:|---:|---:|
+| pure J-UNIWARD baseline (Update 3) | 77.8% | **89.9%** | 28.3% |
+| pure |gradient| cost | 99.0% | **98.5%** | 62.6% |
+| sign-aware ReLU(±gradient) cost | 99.0% | **99.5%** | 24.2% |
+| hybrid J-UW × (1 + 2 × adv_signal) | 78.3% | **89.9%** | 25.3% |
+| hybrid J-UW × (1 + 10 × adv_signal) | 77.3% | **91.4%** | 26.8% |
+
+**None of the variants pushed JUW-multi detection below the J-UNIWARD baseline of 89.9%.** Pure adversarial costs were catastrophically worse (modifications moved out of J-UNIWARD's natural high-frequency distribution into low-frequency regions, where the detector found them even more anomalous). Sign-aware was slightly better against the off-the-shelf baseline (24.2% vs 28.3%) but worse on every fine-tuned detector. Hybrid costs at α=2 and α=10 reproduced the J-UNIWARD baseline numbers within ±2 pp — the adversarial bias is being completely swamped by J-UNIWARD's natural cost dynamic range, and increasing α just degrades both directions slightly without producing any defensive lift.
+
+### Why single-step costs don't work (the literature confirms this)
+
+The single-step gradient ∂(stego_logit)/∂(coefficient) computed at the **clean cover** is a local linear approximation of how the detector will respond to a coefficient modification. For a single ±1 modification on a single coefficient, this approximation is reasonable. For phantasm's actual workload — STC modifying ~10,000 coefficients across the cover to embed a 3 KB payload — the linear approximation breaks down almost immediately. The detector is non-linear; the modification direction that minimizes the logit at the cover point becomes irrelevant or actively wrong after a few coefficient flips, because the stego state is no longer near the cover state.
+
+This is the same failure mode that the FGSM-vs-PGD distinction in adversarial ML captures: single-step (FGSM-style) attacks are known to fail against adversarially-aware models, while iterative (PGD-style) attacks succeed. The successful adversarial-steganography literature (ADV-EMB, ADV-IMB, GAN-based work) all uses iterative refinement, not single-step gradients.
+
+The infrastructure I built is the correct foundation for an iterative approach — Python can re-compute gradients after a round of embedding, write a new sidecar, and the Rust embed pipeline can re-embed with the updated costs. But the iteration loop itself is not implemented yet, and that's the actual work needed to make Option C succeed.
+
+### What's still to try
+
+In rough order of likely payoff:
+
+1. **Iterative refinement (PGD-style).** Embed an initial stego using J-UNIWARD costs. Decode it, compute the gradient at the *stego* point (not the cover), use it to bias costs upward at positions where the modification was bad. Re-embed with the new costs to get stego_1. Repeat 3–5 times. Each round is cheap (~1 second per cover on the GPU). Total cost: ~10 minutes for the full corpus + writing the iteration loop. **This is the next thing to try and the most likely to actually work.**
+
+2. **Warm-start from a stego, not a cover.** Compute the gradient at a stego point on the first iteration instead of a cover point. The gradient is more informative near the decision boundary than far from it. ~5 minutes of work.
+
+3. **Different combination strategies.** The multiplicative `(1 + α × adv)` might be the wrong shape. Try additive (`juw + α × adv`), or saturating (`juw × min(K, 1 + α × adv)`), or a learned blend. ~15 minutes per variant.
+
+4. **End-to-end differentiable embedding.** Replace STC with a differentiable embedding layer so the entire embed-and-detect chain can be optimized as a single graph. This is the most ambitious and most fragile direction; closer to research than engineering. Days, not hours.
+
+### Implications
+
+Even though Update 4 is a negative result, it's a useful one:
+
+- **Phantasm's hand-designed cost functions are exhausted as a defense direction** for fully-adapted attackers. Updates 1+2+3 already pointed at this; Update 4 confirms that simple gradient-based adversarial costs are also insufficient. The remaining defense space is iterative or end-to-end methods.
+- **The infrastructure built for Option C is preserved and ready for the iterative attempt.** The PHCOST sidecar format, the Rust `Sidecar` distortion, the `dump-costs` subcommand, and the Python pipeline are all working. The next attempt at C does not start from zero — it just adds the iteration loop on top of the existing single-step plumbing.
+- **The "use J-UNIWARD for modern threat models" recommendation is unchanged.** Hybrid costs at α=2 reproduce J-UNIWARD's baseline detection rates within statistical noise, which means using sidecar costs is no worse than J-UNIWARD as long as the adversarial signal is well-bounded. In a future iterative-cost world, sidecar costs would be the deployment path; for now, J-UNIWARD remains the recommendation.
+
+### Files
+
+Sidecar-cost infrastructure: `phantasm-cost/src/sidecar.rs`, `phantasm-cli/src/commands/dump_costs.rs`, plus the `--cost-function from-sidecar` and `--cost-sidecar` flags in `phantasm-cli/src/main.rs`. Python: `~/phantasm-eval/advcost/{compute_adv_costs_batch.py, compute_hybrid_costs.py, eval_advcost.py}` on fishbowl. Generated JUW baseline costs: `/tmp/phantasm-advcost/juw_costs/` on the dev Mac (198 sidecars). Adv-cost stegos and eval results: `/tmp/phantasm-advcost/stego/` and `~/phantasm-eval/advcost/eval_advcost.json`.
+
 ## v0.2 research direction proposal
 
 Based on these results, three credible v0.2 directions, in rough priority order:
@@ -328,10 +393,12 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 **Option B** (UERD fine-tune experiment) — **DONE, see § Update 1.**
 **Option B'** (validate asymmetry via symmetric J-UNIWARD fine-tune) — **DONE, see § Update 2.**
 **Option B''** (extended dataset hardening, multi-passphrase) — **DONE, see § Update 3. Demolished the asymmetry; both costs reach 85-90% detection.**
-**Option B'''** (cover-source diversity follow-up, 500 covers) — **next.** Tests whether the multi-pass result is from training-data quantity per se or from cover-source diversity.
-**Option C** (adversarial costs against J-UW-multi as the differentiable target) — **the only remaining direction** that can plausibly defend against a fully-adapted attacker. Substantial scope but the case is now overwhelming.
+**Option B'''** (cover-source diversity follow-up, 500 covers) — not yet attempted.
+**Option C, single-step** (adversarial costs via gradient at the cover point) — **DONE, see § Update 4. FAILED.** Three variants tried (pure |grad|, sign-aware ReLU(±grad), J-UNIWARD-base × (1 + α × adv)). None pushed JUW-multi detection below the 89.9% J-UNIWARD baseline. Single-step gradient is a local linear approximation that breaks down after the first few coefficient flips.
+**Option C-iter** (iterative refinement, PGD-style: re-compute gradient at the partial stego, re-embed, repeat) — **next.** The infrastructure from Update 4 is the foundation; only the iteration loop needs to be added. ~10 minutes of work + a few iterations × ~30s wall-clock per iteration on the GPU. The standard approach in the adversarial-steganography literature.
+**Option C-e2e** (end-to-end differentiable embedding) — research-grade, days of work, fragile. Last resort.
 
-Total scope to v0.2 release: ~2 weeks of focused work, 1 week of polish, conditional on Option C feasibility.
+Total scope to v0.2 release: indeterminate until Option C-iter is tried. If C-iter works, ~1 week of integration + polish. If C-iter also fails, phantasm has no defense against fully-adapted attackers and the v0.2 narrative pivots to scope-limited threat models plus channel adapter / ECC improvements.
 
 ## Reproduction
 

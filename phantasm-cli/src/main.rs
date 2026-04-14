@@ -5,7 +5,7 @@ use std::path::PathBuf;
 mod commands;
 mod logger;
 
-use commands::{analyze, bench, channels, embed, extract};
+use commands::{analyze, bench, channels, dump_costs, embed, extract};
 
 #[derive(Parser)]
 #[command(name = "phantasm")]
@@ -63,6 +63,12 @@ enum Commands {
         /// model (deep-learning adversary), use `j-uniward`. See ML_STEGANALYSIS.md.
         #[arg(long, default_value = "uerd")]
         cost_function: CostFunctionChoice,
+
+        /// Path to a per-coefficient cost-map sidecar file produced by an
+        /// out-of-tree adversarial cost computer. Required when
+        /// `--cost-function from-sidecar`. Hidden from `--help`; research path.
+        #[arg(long, hide = true)]
+        cost_sidecar: Option<PathBuf>,
 
         /// Channel stabilization profile. `none` (default) preserves pre-v0.1.0-alpha
         /// behavior. `twitter` enables MINICER+ROAST stabilization at a ~10-20%
@@ -133,6 +139,21 @@ enum Commands {
         json: bool,
     },
 
+    /// Dump per-coefficient cost map for a JPEG cover to a sidecar binary file.
+    /// Hidden — research path used by the adversarial-cost workflow.
+    #[command(hide = true)]
+    DumpCosts {
+        /// Cover JPEG path
+        #[arg(short, long)]
+        input: PathBuf,
+        /// Output sidecar path
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Cost function to dump
+        #[arg(long, default_value = "j-uniward")]
+        cost_function: CostFunctionChoice,
+    },
+
     /// Run steganalysis self-test (requires phantasm-bench crate)
     Bench {
         /// Directory of cover images
@@ -185,6 +206,11 @@ enum CostFunctionChoice {
     Uerd,
     #[value(name = "j-uniward")]
     Juniward,
+    /// Hidden — research path. Loads per-coefficient costs from a sidecar file
+    /// produced by an out-of-tree adversarial cost computer. Requires
+    /// `--cost-sidecar <path>`.
+    #[value(name = "from-sidecar", hide = true)]
+    FromSidecar,
 }
 
 impl std::fmt::Display for CostFunctionChoice {
@@ -193,6 +219,7 @@ impl std::fmt::Display for CostFunctionChoice {
             Self::Uniform => write!(f, "uniform"),
             Self::Uerd => write!(f, "uerd"),
             Self::Juniward => write!(f, "j-uniward"),
+            Self::FromSidecar => write!(f, "from-sidecar"),
         }
     }
 }
@@ -272,6 +299,7 @@ fn main() -> Result<()> {
             channel,
             stealth,
             cost_function,
+            cost_sidecar,
             channel_adapter,
             hash_guard,
             layer,
@@ -283,6 +311,7 @@ fn main() -> Result<()> {
             channel: *channel,
             stealth: *stealth,
             cost_function: *cost_function,
+            cost_sidecar: cost_sidecar.as_deref(),
             channel_adapter: *channel_adapter,
             hash_guard: *hash_guard,
             layer,
@@ -297,6 +326,10 @@ fn main() -> Result<()> {
         } => extract::run(input, passphrase, output, *channel_adapter, *hash_guard)?,
 
         Commands::Analyze { path, json } => analyze::run(path, *json)?,
+
+        Commands::DumpCosts { input, output, cost_function } => {
+            dump_costs::run(input, output, *cost_function)?;
+        }
 
         Commands::Channels { json } => channels::run(*json)?,
 

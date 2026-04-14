@@ -17,8 +17,10 @@
 //! HILL, etc.
 
 pub mod juniward;
+pub mod sidecar;
 pub mod uerd;
 pub use juniward::Juniward;
+pub use sidecar::Sidecar;
 pub use uerd::Uerd;
 
 use phantasm_image::jpeg::JpegCoefficients;

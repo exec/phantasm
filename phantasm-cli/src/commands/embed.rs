@@ -6,7 +6,7 @@ use phantasm_core::{
     ChannelAdapter, ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity,
     HashType, Orchestrator, StealthTier, TwitterProfile,
 };
-use phantasm_cost::{DistortionFunction, Juniward, Uerd, Uniform};
+use phantasm_cost::{DistortionFunction, Juniward, Sidecar, Uerd, Uniform};
 
 use crate::{
     ChannelAdapterChoice, ChannelChoice, CostFunctionChoice, HashGuardChoice, StealthChoice,
@@ -20,6 +20,7 @@ pub struct EmbedArgs<'a> {
     pub channel: ChannelChoice,
     pub stealth: StealthChoice,
     pub cost_function: CostFunctionChoice,
+    pub cost_sidecar: Option<&'a Path>,
     pub channel_adapter: ChannelAdapterChoice,
     pub hash_guard: HashGuardChoice,
     pub layer: &'a Option<Vec<String>>,
@@ -34,6 +35,7 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         channel,
         stealth,
         cost_function,
+        cost_sidecar,
         channel_adapter,
         hash_guard,
         layer,
@@ -114,7 +116,19 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         CostFunctionChoice::Uniform => Box::new(Uniform),
         CostFunctionChoice::Uerd => Box::new(Uerd),
         CostFunctionChoice::Juniward => Box::new(Juniward),
+        CostFunctionChoice::FromSidecar => {
+            let path = cost_sidecar.ok_or_else(|| {
+                anyhow::anyhow!("--cost-function from-sidecar requires --cost-sidecar <path>")
+            })?;
+            Box::new(Sidecar::new(path.to_path_buf()))
+        }
     };
+    if matches!(cost_function, CostFunctionChoice::FromSidecar) && cost_sidecar.is_none() {
+        anyhow::bail!("--cost-function from-sidecar requires --cost-sidecar");
+    }
+    if !matches!(cost_function, CostFunctionChoice::FromSidecar) && cost_sidecar.is_some() {
+        anyhow::bail!("--cost-sidecar only valid with --cost-function from-sidecar");
+    }
     let mut orchestrator = ContentAdaptiveOrchestrator::new(distortion);
 
     // Hash guard must be applied BEFORE channel stabilization so the guarded
