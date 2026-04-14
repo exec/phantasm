@@ -48,33 +48,35 @@ A second evaluation against pretrained CNN steganalyzers — JIN-SRNet (Butora/Y
 
 Against classical Fridrich RS, **UERD wins**. Against modern JIN-SRNet, **J-UNIWARD wins**. **49.5% of phantasm J-UNIWARD stegos score lower P(stego) than their own cover** — JIN-SRNet sees the stego as more cover-like than the original cover. The Aletheia EffNet-B0 detector (despite severe cover-source mismatch on Picsum) agrees with JIN-SRNet on the ordering in paired-per-cover analysis. **For a modern (deep-learning) threat model, use `--cost-function j-uniward`. For a classical adversary, UERD remains the default.** See [ML_STEGANALYSIS.md § Findings](ML_STEGANALYSIS.md#findings-in-order-of-importance) for the full breakdown.
 
-#### Attacker adaptation: both cost functions fold, but J-UNIWARD stays ahead
+#### Attacker adaptation: both cost functions fold under sufficient training data
 
-A 21-second fine-tune of JIN-SRNet on phantasm UERD output (288 training examples, init from the public J-UNIWARD-trained checkpoint, run on a single RTX 5070) lifts UERD detection from 57.6% to **77.8%** — a 20 percentage-point jump. The symmetric experiment — fine-tuning instead on phantasm J-UNIWARD output — lifts J-UNIWARD detection by an even bigger **+26.3 pp**, from 28.3% to 54.5%. **Both cost functions are vulnerable to cheap attacker adaptation; the cost-function-mismatch artifact framing is wrong.**
+A series of fine-tune experiments establishes how phantasm holds up against an adversary who trains specifically on phantasm output:
 
-But after each cost function is fine-tuned against specifically:
-
-| State | UERD detection | J-UNIWARD detection | gap |
+| Training condition | UERD det | J-UNIWARD det | gap |
 |---|---:|---:|---:|
-| Baseline JIN-SRNet | 57.6% | 28.3% | 29 pp |
-| After targeted fine-tune | 77.8% | **54.5%** | **23 pp** |
+| Baseline JIN-SRNet (no fine-tune) | 57.6% | 28.3% | +29 pp (UERD more detected) |
+| Single-pass fine-tune (288 examples, 1 passphrase per cover) | 77.8% | 54.5% | +23 pp |
+| **Multi-pass fine-tune (1980 examples, 5 passphrases per cover)** | **85.4%** | **89.9%** | **−4.5 pp (J-UW slightly more detected)** |
 
-J-UNIWARD remains 23 percentage points harder to detect than UERD even when an adversary trains specifically against it. **The "use `--cost-function j-uniward` for modern threat models" recommendation stands** — not because J-UNIWARD's evasion is structurally robust, but because J-UNIWARD has a lower absolute detection rate at every fine-tuning stage, including post-attacker-adaptation.
+**Key finding: phantasm's defense against modern CNN steganalysis is scope-limited.** Against off-the-shelf detectors and lightly-adapted attackers, J-UNIWARD evades by 30 pp more than UERD. Against an attacker who has trained specifically on phantasm output with 5× more data per cover (multi-pass, ~95 seconds of training on a single RTX 5070), **both cost functions reach 85-90% detection**, and J-UNIWARD is slightly *worse* than UERD. The cost-function choice barely matters at the worst-case attacker-adaptation level. Both multi-pass detectors also drop cover false positives to ~0% (0/198 and 1/198 on the full 198-image eval).
 
-A side finding from the symmetric experiment: **the J-UNIWARD-aware fine-tuned model is the strongest general detector of the three.** It has the lowest cover false positive (4.5%), highest Uniform detection (95.5%), competitive UERD detection (73.7%), and best J-UNIWARD detection (54.5%). Training against the hardest target produced the best detector overall — consistent with general adversarial-robustness intuition that subtle adversaries teach the most discriminating features. See [ML_STEGANALYSIS.md § Update 2](ML_STEGANALYSIS.md#update-2--symmetric-j-uniward-fine-tune-option-b-validation) for the three-way detector comparison.
+**The "use `--cost-function j-uniward` for modern threat models" recommendation is now scope-limited:** it defends against off-the-shelf and modestly-adapted detectors; it does not defend against an attacker with phantasm-specific training data. See [ML_STEGANALYSIS.md § Update 3](ML_STEGANALYSIS.md#update-3--multi-passphrase-fine-tunes-option-b-complete--supersedes-update-2s-gap-claim) for the five-way detector comparison and the implications for v0.2.
+
+A side finding worth keeping: **the J-UW multi-pass detector is now the strongest publicly-implementable phantasm detector.** 89.9% J-UNIWARD detection, 99% Uniform detection, 72.7% UERD detection, 0.5% cover false positive. This is the detector to beat for any adversarial-cost research direction.
 
 #### What's still open
 
-- **Extended dataset hardening.** Both fine-tunes used 288 examples from 22 unique seeds, single passphrase. The +20 / +26 pp lift estimates carry sample noise. Cheap follow-ups: 5–10 passphrases per cover (no fetches), or extend Picsum corpus to 500 covers.
-- **Adversarial costs (Option C).** Use the J-UNIWARD-fine-tuned checkpoint from Update 2 as a differentiable distortion oracle and compute per-coefficient embedding costs that maximize distance from its decision boundary. The detector to beat is no longer off-the-shelf SRNet but our own most-capable adversary-trained model.
-- **No public third-party UERD-trained baseline.** Both fine-tunes in this work are phantasm's own contribution; an independent UERD-trained checkpoint would help triangulate the lift numbers.
+- **Cover-source diversity** (Option B'''): Update 3's multi-pass result was 5× more views of the same 22 unique seeds. The complementary axis is more *unique* covers. Cheap follow-up: extend the Picsum corpus to 500 covers and re-run.
+- **Adversarial costs (Option C):** the only remaining v0.2 direction that could plausibly defend against a fully-adapted attacker. Use the J-UW-multi detector as a differentiable distortion oracle, compute per-coefficient costs that maximize distance from its decision boundary, and ship `--cost-function adv-juw-multi` if it cuts detection by a meaningful margin.
+- **Cross-cover-source generalization.** All training and evaluation in this work is on Picsum. A real attacker may not have the user's specific cover distribution, in which case detection rates would likely be lower.
 
 For the security-capacity curve, both detectors' detailed results, cross-detector consistency analysis, and the full caveats list, see [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md). Direct links:
 - [TL;DR](ML_STEGANALYSIS.md#tldr)
 - [What we ran](ML_STEGANALYSIS.md#what-we-ran)
 - [Detailed results — fixed payload](ML_STEGANALYSIS.md#detailed-results--fixed-payload-198-covers-3-kb---stealth-high)
-- [Update 1 — UERD fine-tune](ML_STEGANALYSIS.md#update-1--uerd-fine-tune-option-b-complete--partially-superseded-by-update-2)
-- [Update 2 — Symmetric J-UNIWARD fine-tune](ML_STEGANALYSIS.md#update-2--symmetric-j-uniward-fine-tune-option-b-validation)
+- [Update 1 — UERD fine-tune](ML_STEGANALYSIS.md#update-1--uerd-fine-tune-option-b-complete--superseded-by-updates-2--3)
+- [Update 2 — Symmetric J-UNIWARD fine-tune](ML_STEGANALYSIS.md#update-2--symmetric-j-uniward-fine-tune-option-b-validation--superseded-by-update-3)
+- [Update 3 — Multi-passphrase fine-tunes](ML_STEGANALYSIS.md#update-3--multi-passphrase-fine-tunes-option-b-complete--supersedes-update-2s-gap-claim)
 - [Cross-detector consistency](ML_STEGANALYSIS.md#cross-detector-consistency)
 - [Caveats](ML_STEGANALYSIS.md#caveats)
 - [v0.2 research direction proposal](ML_STEGANALYSIS.md#v02-research-direction-proposal)

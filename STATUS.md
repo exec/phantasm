@@ -336,7 +336,15 @@ Tested phantasm v0.1.0 at the default 3 KB payload (~0.2 bpnzac) on the same 198
 - JIN-SRNet license is "research-use, conventional" per DDE Lab convention; not explicitly tagged. Verify before publishing eval numbers externally.
 - Aletheia ONNX path uses CPU inference (CUDA EP failed against the Blackwell 5070 — needs cuDNN 9.x + CUDA 12.x; tolerable since CPU still hits 22 img/s).
 
-**Follow-up: Update 1 + Update 2 in ML_STEGANALYSIS.md.** A 21-second UERD-aware fine-tune of JIN-SRNet lifts UERD detection from 57.6% to 77.8% (+20 pp). The symmetric J-UNIWARD-aware fine-tune lifts J-UNIWARD detection from 28.3% to 54.5% (+26 pp). **Both cost functions are vulnerable to attacker adaptation; the "structural vs mismatch" framing initially proposed in Update 1 was wrong.** But J-UNIWARD remains 23 pp harder to detect than UERD even after each is targeted by its specific fine-tune (UERD 77.8%, J-UNIWARD 54.5% post-attacker-adaptation). The "use J-UNIWARD for modern threat models" recommendation stands, justified by lower absolute detection rate at every fine-tuning stage rather than by structural evasion. See `ML_STEGANALYSIS.md` § Update 1 and § Update 2 for the three-way detector comparison and Option C reframing.
+**Follow-up: Updates 1 + 2 + 3 in ML_STEGANALYSIS.md.** A series of fine-tune experiments establishes how phantasm holds up against an adversary trained on phantasm output:
+
+| training condition | UERD det | J-UNIWARD det | gap |
+|---|---:|---:|---:|
+| Baseline JIN-SRNet | 57.6% | 28.3% | +29 pp |
+| Single-pass fine-tune (288 examples) | 77.8% | 54.5% | +23 pp |
+| **Multi-pass fine-tune (1980 examples, 5 passphrases per cover)** | **85.4%** | **89.9%** | **−4.5 pp** |
+
+**The "use J-UNIWARD for modern threat models" recommendation is now scope-limited.** It defends against off-the-shelf and lightly-adapted detectors. Against a fully-adapted attacker (one with phantasm-specific training data and 5+ stego variants per cover), both cost functions are detected at 85-90% rates and J-UNIWARD's advantage disappears entirely. Both multi-pass detectors also drop cover false positive to ~0% on the full 198-image eval. The strongest detector we have is now `juniward_multi_best.pt` (89.9% J-UW detection, 0.5% cover FP) — that's the adversarial target for any v0.2 Option C work. The cost-function-design research direction is, on this evidence, exhausted as a defense against fully-adapted attackers; only adversarial costs explicitly targeting deployed detector decision boundaries remain. See `ML_STEGANALYSIS.md` § Update 3 for the five-way detector comparison and the v0.2 implications.
 
 ### Finding 8 (day 2 afternoon — v0.1.0 final bench): Post-STC-fix numbers improve across the board
 

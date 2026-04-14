@@ -10,7 +10,9 @@ Tested phantasm at the v0.1.0 default payload (3 KB, ~0.2 bpnzac) on 198 Picsum 
 
 **Update 1 (Option B, same day):** Fine-tuned JIN-SRNet on phantasm UERD output for 21 seconds and lifted UERD detection from 57.6% to **77.8%**. Same fine-tune slightly *decreased* J-UNIWARD detection (28.3% → 25.3%). I claimed this meant "J-UNIWARD's robustness is structural" — see Update 2 for why that interpretation was wrong.
 
-**Update 2 (Option B' validation, same day):** Symmetric experiment — fine-tuned JIN-SRNet on phantasm J-UNIWARD output and measured J-UNIWARD detection lift. Result: J-UNIWARD-aware fine-tune lifts J-UNIWARD detection from 28.3% to **54.5%** (+26.3 pp), MORE than UERD-aware lifts UERD (+20.2 pp). The asymmetry claimed in Update 1 was wrong. **Both cost functions are vulnerable to attacker adaptation.** But J-UNIWARD remains 23 pp harder to detect than UERD even after each is fine-tuned specifically against it. The "use J-UNIWARD for modern threat models" recommendation stands, for a different reason than Update 1 claimed: not structural evasion, but a lower absolute detection rate at every fine-tuning stage.
+**Update 2 (Option B' validation, same day):** Symmetric experiment — fine-tuned JIN-SRNet on phantasm J-UNIWARD output and measured J-UNIWARD detection lift. Result: J-UNIWARD-aware fine-tune lifts J-UNIWARD detection from 28.3% to 54.5% (+26.3 pp), more than UERD-aware lifts UERD (+20.2 pp). The asymmetry claimed in Update 1 was wrong. Both cost functions are vulnerable to attacker adaptation. J-UNIWARD remains 23 pp harder to detect than UERD even after each is fine-tuned specifically against it. **Update 3 below partially supersedes this finding under larger training sets.**
+
+**Update 3 (Option B'' extended dataset, same day):** Re-ran both fine-tunes with 5 passphrases per cover (5× larger training set as passphrase-variation augmentation). UERD detection lifts to 85.4% and J-UNIWARD detection lifts to **89.9%** — J-UNIWARD is now slightly *more* detectable than UERD at the worst-case attacker-adaptation level. The 23 pp J-UNIWARD-vs-UERD gap from Update 2 is gone. **In the worst case, against an attacker who has trained specifically on phantasm output with sufficient data, neither cost function defends.** The "use J-UNIWARD" recommendation is now scope-limited: it holds against off-the-shelf and lightly-adapted detectors, not against a fully-adapted attacker. See § Update 3 below.
 
 | Detector | Cover (FP) | Uniform | UERD | J-UNIWARD |
 |---|---:|---:|---:|---:|
@@ -137,9 +139,9 @@ The two detectors agree on the ordering (uniform > uerd > juniward in detection 
 - **Aletheia ONNX path uses CPU inference only.** CUDA execution provider failed (cuDNN/CUDA version mismatch on Blackwell). Not blocking — 22 img/s on CPU is plenty for our scale.
 - **No license clarity on JIN-SRNet weights.** Conventional research-use; verify the LICENSE inside the JIN_SRNet.zip before publishing eval results externally.
 
-## Update 1 — UERD fine-tune (Option B complete) — partially superseded by Update 2
+## Update 1 — UERD fine-tune (Option B complete) — superseded by Updates 2 + 3
 
-> **Note (added with Update 2):** The interpretation in this section — that "J-UNIWARD's robustness is structural" — was wrong. Update 2 below runs the symmetric experiment (J-UNIWARD-aware fine-tune) and shows J-UNIWARD detection lifts even MORE than UERD detection does (+26.3 pp vs +20.2 pp). The factual numbers in this section are correct; the "structural vs mismatch" framing is not. The recommendation is unchanged but its justification is in Update 2.
+> **Note (added with Updates 2 + 3):** The interpretation in this section — that "J-UNIWARD's robustness is structural" — was wrong on two counts. Update 2 showed J-UNIWARD detection lifts MORE than UERD detection under a symmetric fine-tune (+26 vs +20). Update 3 then showed that with 5× more training data, J-UNIWARD becomes slightly *more* detectable than UERD (89.9% vs 85.4%) — the asymmetry from Update 2 also disappears at scale. The factual numbers in this section are correct; the framing is not. Read Update 3 for the current best understanding of the cost-function/attacker-adaptation tradeoff.
 
 Following the original v0.2 plan (Option B below), I fine-tuned JIN-SRNet to be UERD-aware and re-evaluated. The fine-tune was deliberately tiny: 288 training examples (16 unique seeds × 9 qf/dim × 2 classes), 10 epochs, Adam lr=1e-5, random horizontal-flip + random 256×256 crop augmentation, all parameters trainable, init from JIN-SRNet weights. Total wall-clock training time on the RTX 5070: **21 seconds**.
 
@@ -180,7 +182,9 @@ The case for **Option C (adversarial costs)** is now stronger, because the case 
 
 But before committing to Option C's 2+ week scope, **Option B' should validate the asymmetry direction** — if the J-UNIWARD-aware fine-tune symmetrically lifts J-UNIWARD detection, the asymmetry is fake and the C work needs a different framing.
 
-## Update 2 — Symmetric J-UNIWARD fine-tune (Option B' validation)
+## Update 2 — Symmetric J-UNIWARD fine-tune (Option B' validation) — superseded by Update 3
+
+> **Note (added with Update 3):** The "J-UNIWARD remains 23 pp harder to detect than UERD even after fine-tuning" claim from this section turned out to depend on small training-set size. With 5× more training data per cover (Update 3), the gap collapses from +23 pp to −4.5 pp (J-UNIWARD becomes slightly more detectable than UERD at ~85-90% rates). The "structural vs mismatch" reframing in this section was already a walk-back of Update 1; Update 3 is a further walk-back of Update 2. The eval section below is preserved for historical context — read Update 3 for the current best estimate.
 
 Update 1's interpretation hinged on a directional asymmetry: UERD-aware fine-tune lifts UERD detection but slightly DECREASES J-UNIWARD detection. The natural validation is to run the symmetric experiment: J-UNIWARD-aware fine-tune from the same JIN-SRNet baseline, with the same hyperparameters and data split, and measure J-UNIWARD detection lift. If J-UNIWARD's lift is small (or zero), the asymmetry is real. If J-UNIWARD's lift is comparable to (or larger than) UERD's, the asymmetry is fake.
 
@@ -225,6 +229,59 @@ Mean P(stego) deltas tell the same story: UERD-ft moves UERD from 0.504 → 0.73
 
 Three-way eval JSON: `~/phantasm-eval/finetune-juniward/three_way_eval.json` on the dev GPU box. Fine-tuned checkpoints: `~/phantasm-eval/finetune-uerd/uerd_finetune_best.pt` and `~/phantasm-eval/finetune-juniward/juniward_finetune_best.pt`.
 
+## Update 3 — Multi-passphrase fine-tunes (Option B'' complete) — supersedes Update 2's gap claim
+
+Updates 1 and 2 both used a single-passphrase training set (288 examples per fine-tune). The natural extension is to vary the passphrase per cover, producing N stego variants per cover that share the same content but differ in their STC permutations. This functions as data augmentation: the model sees the same 22 unique seeds but learns N times more variants of how phantasm modifies them, mimicking what a real attacker with a phantasm corpus would have access to.
+
+**Setup:** For each of the 198 covers (22 seeds × 9 qf/dim), generate 5 UERD stego variants and 5 J-UNIWARD stego variants using passphrases `ml-multi-pass-{0..4}`. Same payload (3000 bytes), same `--stealth high`. New training data: 1980 stegos + 1980 paired covers per target = 3960 items, 7× larger than the single-pass runs (counting balanced pairs). Same seed-level split (16 train / 3 val / 3 test seeds). Same hyperparameters as Updates 1 and 2 (Adam lr=1e-5, 10 epochs, random crop + flip, init from JIN-SRNet). Wall-clock training time on RTX 5070: **~95 seconds per fine-tune**.
+
+### Five-way comparison — same eval-198 dataset, same 256×256 center-crop preprocessing
+
+| group | baseline JIN-SRNet | UERD 1-pass | JUW 1-pass | **UERD multi** | **JUW multi** |
+|---|---:|---:|---:|---:|---:|
+| cover | 18.2% | 17.7% | 4.5% | **0.0%** | 0.5% |
+| uniform | 83.8% | 88.9% | 95.5% | **99.0%** | 97.5% |
+| **uerd** | 57.6% | 77.8% | 73.7% | **85.4%** | 72.7% |
+| **juniward** | 28.3% | 25.3% | 54.5% | 77.8% | **89.9%** |
+
+### Post-attacker-adaptation gap (UERD det − J-UNIWARD det)
+
+| training condition | UERD det | J-UW det | gap |
+|---|---:|---:|---:|
+| Baseline JIN-SRNet | 57.6% | 28.3% | +29 pp (UERD more detected) |
+| Single-pass targeted fine-tune (Update 2) | 77.8% | 54.5% | +23 pp |
+| **Multi-pass targeted fine-tune (Update 3)** | **85.4%** | **89.9%** | **−4.5 pp (J-UW slightly more detected)** |
+
+### What changes from Updates 1 + 2
+
+1. **The "J-UNIWARD has lower absolute detection rate at every stage" framing from Update 2 was also wrong** — but only at the most extreme attacker-adaptation level. With single-pass training, J-UW had a 23 pp absolute advantage. With 5× more training data per cover, the advantage is gone, and J-UW becomes slightly *more* detectable than UERD at ~85-90% rates. The training-set size that Update 2 used (288 items, single passphrase) was insufficient to expose J-UNIWARD to the kind of adversarial pressure that breaks it.
+
+2. **Both cost functions are detected at ~85-90% by a fully-adapted attacker.** The "use J-UNIWARD for modern threat models" recommendation is now scope-limited: it holds against off-the-shelf and lightly-adapted detectors, but does not defend against an attacker who has trained on phantasm output with sufficient data. The sufficient threshold is small — passphrase variation alone (no new covers) closed most of the gap.
+
+3. **Cover false positive collapses to zero with multi-pass training.** Both multi-pass models have 0/198 or 1/198 cover false positives on the full 198-image eval set. This is a sharper cover boundary than any of the earlier models. **Bigger training data → much tighter cover specificity** at minimal extra training cost.
+
+4. **Cross-cost-function transfer is much stronger with multi-pass training.** UERD-multi catches J-UNIWARD at 77.8% (vs baseline 28.3%, single-pass UERD-ft 25.3%). J-UW-multi catches UERD at 72.7% (vs baseline 57.6%, single-pass J-UW-ft 73.7%). **A multi-pass detector trained on EITHER cost function is a strong general phantasm detector** — far stronger than the single-pass equivalents.
+
+5. **The strongest detector we have is now J-UW-multi.** 89.9% J-UNIWARD detection, 99.0% Uniform detection (essentially saturated), 72.7% UERD detection (close to UERD-multi's 85.4%), and only 0.5% cover false positive. **For Option C (adversarial costs), this is the detector to beat** — not off-the-shelf JIN-SRNet, not the single-pass fine-tunes from Updates 1 + 2.
+
+### Caveats specific to Update 3
+
+- **Same 22 unique seed pool, just augmented by passphrase.** The training set is "5x more views of 16 seeds" rather than "more cover diversity." Results may not generalize to a corpus with 5× more *unique covers*. The cover diversity dimension is still untested.
+- **Picsum-trained, Picsum-evaluated.** Cross-cover-source generalization is still untested. A real attacker may not have the user's specific cover distribution, in which case detection rates would be lower (closer to single-pass numbers, possibly closer to baseline).
+- **Multi-pass detectors may be over-fit to the 22 training seeds.** Test split is the held-out 3 seeds (135 stegos at 5 passphrases × 9 qf/dim) — high in-distribution but small N at the seed level. Worst-case-attacker numbers should be treated as an upper bound on detection capability, not a tight estimate.
+- **Single-pass J-UW fine-tune was undertrained.** Update 2's "J-UW lifts +26 pp" was achieved on 288 examples; the multi-pass version achieves a +35 pp lift on the same metric using 5× the data. The Update 2 framing should be read as "this is what a small fine-tune does," not "this is the ceiling of what fine-tuning can do."
+
+### Implication for v0.2
+
+- **The recommendation to use `--cost-function j-uniward` is now narrower:** it defends against off-the-shelf detectors and modestly-adapted detectors, but folds against a fully-adapted attacker who has trained specifically on phantasm output with sufficient data per cover. For a high-stakes threat model where the adversary may have phantasm-specific training resources, the cost function choice barely matters — both UERD and J-UNIWARD reach 85-90% detection.
+- **Option C (adversarial costs) is now the *only* meaningful v0.2 research direction** for defending against a fully-adapted attacker. Hand-designed costs of any flavor have been shown to fail against attacker adaptation in this eval. The case for C is overwhelming.
+- **The detector to beat for Option C is J-UW-multi** (89.9% J-UNIWARD detection, 0.5% cover FP). This is the strongest publicly-implementable phantasm detector; an adversarial cost function that cuts its detection rate by even ~30 pp would be a genuine research result.
+- **Option B''' (cover-source diversity) is the natural follow-up to Update 3.** Multi-pass with 5× passphrases established that *training data quantity* matters; the next question is whether *training data diversity* (more unique covers) matters more or less. Cheap follow-up: extend Picsum corpus to 500 covers via fetch_corpus extension and re-run.
+
+### Files
+
+Five-way eval JSON: `~/phantasm-eval/finetune-multi-uerd/five_way_eval.json` on the dev GPU box. Multi-pass checkpoints: `~/phantasm-eval/finetune-multi-uerd/uerd_multi_best.pt` and `~/phantasm-eval/finetune-multi-juniward/juniward_multi_best.pt`.
+
 ## v0.2 research direction proposal
 
 Based on these results, three credible v0.2 directions, in rough priority order:
@@ -245,34 +302,36 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 
 **Result:** J-UNIWARD-aware fine-tune lifts J-UNIWARD detection by +26.3 pp, more than UERD-aware lifts UERD (+20.2 pp). Both cost functions are vulnerable to attacker adaptation. The "structural vs mismatch" framing in Update 1 was wrong. The "use J-UNIWARD" recommendation stands but for a different reason: J-UNIWARD has a lower absolute detection rate at every fine-tuning stage, including post-attacker-adaptation (54.5% vs UERD's 77.8%, a 23 pp gap).
 
-### Option B'' — Extended dataset hardening
+### Option B'' — Extended dataset hardening — **DONE, see § Update 3. Demolished the asymmetry.**
 
-**The case:** Both Option B and B' fine-tunes used 288 training examples from 22 unique seeds, single passphrase. The +20 pp / +26 pp lift estimates carry sample noise. Two cheap extensions to harden the numbers:
+**Result:** Multi-pass fine-tunes (5 passphrases per cover, 5× more training data) push UERD detection to 85.4% and J-UNIWARD detection to 89.9% — J-UNIWARD becomes slightly MORE detectable than UERD at the worst-case attacker-adaptation level. Both multi-pass models hit ~0% cover false positive on the full 198-image eval. The asymmetry from Update 2 was a small-N artifact. The "use J-UNIWARD" recommendation is now scope-limited to lightly-adapted threat models.
 
-1. **More passphrases per cover.** Generate 10 stego variants per cover by varying the embed passphrase. 5× larger train set, no new fetches.
-2. **More covers.** Extend the Picsum corpus to 500 covers via fetch_corpus extension (cheap — Picsum is free and has no rate limit issues for our scale).
+### Option B''' — Cover-source diversity follow-up
 
-Either is a few hours. Both together is most of a day. Likely to either tighten the lift numbers within ~3 pp, or expose a bias in the small-N runs.
+**The case:** Update 3 established that "more training data per cover" matters. The complementary axis is "more unique covers" — does cover diversity have the same lift effect, or is the multi-pass result an artifact of seeing the same 22 seeds in 5 different forms? Cheap test: extend Picsum corpus to 500 unique covers via fetch_corpus extension, regenerate the eval, and re-run both fine-tunes.
 
-### Option C — Adversarial costs (reframed after Update 2)
+**Cost:** ~half day. Mostly an embed + train cycle.
 
-**The case (post-Update 2):** Both UERD and J-UNIWARD fold under cheap fine-tunes from JIN-SRNet, but J-UNIWARD remains 23 pp harder to detect even after attacker adaptation. The right framing is no longer "hand-designed costs are vulnerable, build adversarial ones." The new framing is: **any hand-designed cost will fold under attacker adaptation; the question is what an attacker who has trained specifically on phantasm output looks like, and whether adversarial costs can win at *that* deployment-time threat model.**
+### Option C — Adversarial costs (reframed after Update 3)
 
-**Concrete approach:** Use the J-UNIWARD-fine-tuned checkpoint from Update 2 (the strongest detector now in our possession) as a differentiable distortion oracle. Compute per-coefficient costs that maximize distance from its decision boundary. Phantasm could ship a `--cost-function adv-juw-ft` that beats *that* specific detector by a meaningful margin.
+**The case (post-Update 3):** Update 3 demolished the last claim that any hand-designed cost function is structurally robust against attacker adaptation. With 5× more training data per cover, both UERD and J-UNIWARD reach 85-90% detection by a fine-tuned model. **The cost-function-design research direction is, on this evidence, exhausted as a defense against fully-adapted attackers.** The only remaining direction that could possibly defend is adversarial costs that explicitly target the deployed detector's decision boundary at deployment time.
 
-**Risks:** Substantial implementation work. The PyTorch graph would need to be wired into the embed pipeline (currently pure Rust). Cleanest path: a Python pre-pass that produces a per-coefficient cost map, written to a sidecar file, then read by the existing Rust embed pipeline. Architecture is doable in ~1 week; the research payoff depends on whether the adversarial cost actually beats the J-UW-ft detector by a margin worth the complexity.
+**Concrete approach:** Use the J-UW-multi checkpoint from Update 3 (the strongest detector publicly implementable: 89.9% J-UNIWARD detection, 0.5% cover FP) as a differentiable distortion oracle. Compute per-coefficient costs that maximize distance from its decision boundary. Phantasm ships `--cost-function adv-juw-multi` that targets *that* specific detector. The success criterion: cut detection rate from 89.9% to below 50% while preserving the existing J-UNIWARD perceptual-distortion guarantees.
 
-**What this enables:** A defensible claim that phantasm's adv-cost mode beats a state-of-the-art detector trained specifically on phantasm J-UNIWARD output. That is a stronger and more honest claim than "beats off-the-shelf SRNet" and directly addresses the threat model of an adversary who has dedicated resources to detecting phantasm.
+**Risks:** Substantial implementation work. The PyTorch graph would need to be wired into the embed pipeline (currently pure Rust). Cleanest architecture: a Python pre-pass that produces a per-coefficient cost map, written to a sidecar file, then read by the existing Rust embed pipeline. Doable in ~1 week. The research payoff depends entirely on whether the adversarial cost actually beats the J-UW-multi detector by a meaningful margin — which is genuinely uncertain. If it doesn't, phantasm has no defense against a fully-adapted attacker, and the v0.2 narrative becomes "scope-limited to non-adapted threat models, plus channel adapter and ECC improvements."
 
-### Recommended path (updated after Updates 1+2)
+**What this enables (best case):** A defensible claim that phantasm's adv-cost mode beats a state-of-the-art detector trained specifically on phantasm output. That is the only research result that would extend phantasm's defended threat model beyond "off-the-shelf and lightly-adapted detectors." The claim is also threat-model-honest: it doesn't pretend to defend against *unbounded* adversary adaptation, only against the specific deployed detector at training time.
+
+### Recommended path (updated after Updates 1+2+3)
 
 **Option A** (docs + threat-model framing in CLI help) — **DONE** (commit `c450aa6`).
 **Option B** (UERD fine-tune experiment) — **DONE, see § Update 1.**
-**Option B'** (validate asymmetry direction via symmetric J-UNIWARD fine-tune) — **DONE, see § Update 2. Asymmetry was fake.**
-**Option B''** (extended dataset hardening — more passphrases, more covers) — **next, cheap.** Confirms or shrinks the +20 / +26 pp lift estimates with bigger-N runs.
-**Option C** (adversarial costs against the J-UW-fine-tuned detector) — substantial. Commit only after B'' results inform the framing.
+**Option B'** (validate asymmetry via symmetric J-UNIWARD fine-tune) — **DONE, see § Update 2.**
+**Option B''** (extended dataset hardening, multi-passphrase) — **DONE, see § Update 3. Demolished the asymmetry; both costs reach 85-90% detection.**
+**Option B'''** (cover-source diversity follow-up, 500 covers) — **next.** Tests whether the multi-pass result is from training-data quantity per se or from cover-source diversity.
+**Option C** (adversarial costs against J-UW-multi as the differentiable target) — **the only remaining direction** that can plausibly defend against a fully-adapted attacker. Substantial scope but the case is now overwhelming.
 
-Total scope to v0.2 release: ~2 weeks of focused work, 1 week of polish.
+Total scope to v0.2 release: ~2 weeks of focused work, 1 week of polish, conditional on Option C feasibility.
 
 ## Reproduction
 
