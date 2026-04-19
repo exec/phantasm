@@ -13,6 +13,7 @@ use phantasm_crypto::{
     derive_locations_key, open, seal, ContentType, CryptoError, Envelope, KdfParams,
     PayloadMetadata,
 };
+use phantasm_ecc::{Decoder as EccDecoder, EccParams, Encoder as EccEncoder};
 use phantasm_image::jpeg::{self, JpegCoefficients};
 use phantasm_stc::{StcConfig, StcDecoder, StcEncoder};
 
@@ -35,6 +36,35 @@ pub(crate) fn embed_with_costs(
         output_path,
         None,
         None,
+    )
+}
+
+// RS parameters for the lossy (channel-adapter) path. data/parity/shard chosen
+// to keep one 3000-byte-ish envelope within a single 255-shard block while
+// correcting ~p99 of byte errors observed after Twitter-surrogate recompression
+// of a 98.7%-coefficient-survival stego.
+//
+// - shard_size = 32: keeps one block small enough (100 × 32 = 3200 bytes) that
+//   a nominal 3000-byte payload + ~80-byte envelope overhead + 4-byte internal
+//   len prefix fits in a single block. Larger shards waste capacity via
+//   zero-padding up to the next block boundary.
+// - data_shards = 100, parity_shards = 30: 30 % redundancy. Without erasure
+//   information RS in GF(2^8) corrects floor(parity/2) = 15 byte errors per
+//   block. At the observed ~1.3 % coefficient-error rate post-Twitter, byte
+//   errors per 3200-byte block concentrate well below 15 on typical covers; 30
+//   parity shards leave headroom for p99 covers and for multi-block payloads.
+// - Capacity cost vs the lossless path is ~30 % in the STC bit budget for
+//   any payload that fits a single block; multi-block payloads asymptote to
+//   the same 30 % overhead plus a small per-block boundary.
+const LOSSY_ECC_DATA_SHARDS: usize = 100;
+const LOSSY_ECC_PARITY_SHARDS: usize = 30;
+const LOSSY_ECC_SHARD_SIZE: usize = 32;
+
+fn lossy_ecc_params() -> EccParams {
+    EccParams::new(
+        LOSSY_ECC_DATA_SHARDS,
+        LOSSY_ECC_PARITY_SHARDS,
+        LOSSY_ECC_SHARD_SIZE,
     )
 }
 
@@ -99,6 +129,7 @@ pub(crate) fn embed_with_costs_and_hooks(
 
     info!("pipeline: final cost map size = {}", working_costs.len());
 
+    let use_ecc = channel_adapter.is_some();
     embed_prepared(
         &mut jpeg,
         payload,
@@ -106,6 +137,7 @@ pub(crate) fn embed_with_costs_and_hooks(
         &working_costs,
         cover_path,
         output_path,
+        use_ecc,
     )
 }
 
@@ -116,6 +148,7 @@ fn embed_prepared(
     costs: &CostMap,
     cover_path: &Path,
     output_path: &Path,
+    use_ecc: bool,
 ) -> Result<EmbedResult, CoreError> {
     let salt = image_salt(jpeg);
 
@@ -130,7 +163,22 @@ fn embed_prepared(
     let envelope = seal(passphrase, metadata, payload, &kdf)?;
     let envelope_bytes = envelope_to_bytes(&envelope);
 
-    let framed = frame_bytes(&envelope_bytes);
+    // Lossy path: wrap envelope in Reed-Solomon before framing. The AEAD tag on
+    // the envelope aborts extraction on any surviving ciphertext bit flip, so
+    // without ECC the ~1.3 % post-Twitter byte-error rate translates to ~0 %
+    // extract success. ECC runs OUTSIDE the envelope so RS repairs are not
+    // subject to the MAC check.
+    let pre_stc_bytes = if use_ecc {
+        let encoder = EccEncoder::new(lossy_ecc_params())
+            .map_err(|e| CoreError::InvalidData(format!("ecc init: {e}")))?;
+        encoder
+            .encode(&envelope_bytes)
+            .map_err(|e| CoreError::InvalidData(format!("ecc encode: {e}")))?
+    } else {
+        envelope_bytes
+    };
+
+    let framed = frame_bytes(&pre_stc_bytes);
     let mut payload_bits = bytes_to_bits_lsb(&framed);
 
     let locations_key = derive_locations_key(passphrase, &salt, &kdf);
@@ -204,6 +252,14 @@ pub(crate) fn extract_from_cover(
     stego_path: &Path,
     passphrase: &str,
 ) -> Result<Vec<u8>, CoreError> {
+    extract_from_cover_with_opts(stego_path, passphrase, false)
+}
+
+pub(crate) fn extract_from_cover_with_opts(
+    stego_path: &Path,
+    passphrase: &str,
+    use_ecc: bool,
+) -> Result<Vec<u8>, CoreError> {
     let jpeg = jpeg::read(stego_path)?;
     let salt = image_salt(&jpeg);
 
@@ -238,8 +294,17 @@ pub(crate) fn extract_from_cover(
     // verbatim — it's the one error we want a genuine older-format file to
     // surface with, even though the MAC check would also reject it.
     let framed_bytes = bits_to_bytes_lsb(&message_bits);
-    let envelope_bytes =
+    let post_stc_bytes =
         unframe_bytes(&framed_bytes).map_err(|_| CoreError::Crypto(CryptoError::AuthFailed))?;
+    let envelope_bytes = if use_ecc {
+        let ecc_decoder = EccDecoder::new(lossy_ecc_params())
+            .map_err(|_| CoreError::Crypto(CryptoError::AuthFailed))?;
+        ecc_decoder
+            .decode(&post_stc_bytes, None)
+            .map_err(|_| CoreError::Crypto(CryptoError::AuthFailed))?
+    } else {
+        post_stc_bytes
+    };
     let envelope = bytes_to_envelope(&envelope_bytes).map_err(|e| match e {
         CoreError::Crypto(CryptoError::UnsupportedVersion(_)) => e,
         _ => CoreError::Crypto(CryptoError::AuthFailed),

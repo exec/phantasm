@@ -318,8 +318,14 @@ fn run_one_trial(
         };
     }
 
-    // Extraction does not consult the distortion function, so any cost fn works here.
-    let extractor = ContentAdaptiveOrchestrator::new(Box::new(phantasm_cost::Uniform));
+    // Extraction does not consult the distortion function, so any cost fn
+    // works here. The adapter-presence flag *does* matter: it selects the
+    // ECC route in the pipeline, which must match the embed side.
+    let mut extractor = ContentAdaptiveOrchestrator::new(Box::new(phantasm_cost::Uniform));
+    if adapter_on {
+        let adapter: Box<dyn ChannelAdapter> = Box::new(TwitterProfile::default());
+        extractor = extractor.with_channel_adapter(adapter);
+    }
     let extract_res = extractor.extract(&reenc_path, passphrase);
 
     match extract_res {

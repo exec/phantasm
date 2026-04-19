@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::path::Path;
 
 use phantasm_core::pipeline_spatial;
-use phantasm_core::{ContentAdaptiveOrchestrator, Orchestrator};
+use phantasm_core::{ChannelAdapter, ContentAdaptiveOrchestrator, Orchestrator, TwitterProfile};
 use phantasm_cost::Uniform;
 
 use crate::commands::passphrase::PassphraseSource;
@@ -19,7 +19,7 @@ pub fn run(
     input: &Path,
     passphrase: PassphraseSource,
     output: &Path,
-    _channel_adapter: ChannelAdapterChoice,
+    channel_adapter: ChannelAdapterChoice,
     _hash_guard: HashGuardChoice,
 ) -> Result<()> {
     if passphrase.is_empty() {
@@ -41,14 +41,20 @@ pub fn run(
     let payload = if is_png_path(input) {
         pipeline_spatial::extract_png(input, &passphrase_str)?
     } else {
-        // Extraction reads the embedded payload directly from the stego JPEG —
-        // STC decoding does not consult the cost function, so any distortion
-        // is fine here. The --channel-adapter and --hash-guard flags are
-        // accepted for forward-compatibility with a future envelope format
-        // that auto-detects them, but v0.1 extract derives positions
-        // geometrically from the stego JPEG and does not need the values at
-        // runtime.
-        let orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
+        // STC decoding is passphrase-keyed and does not consult the cost
+        // function, so any distortion works for the extract side. The
+        // `--channel-adapter` flag selects the ECC framing route (lossy-path
+        // stegos wrap the envelope in Reed-Solomon before STC) and must match
+        // the embed side; `--hash-guard` is a pure embed-time switch that
+        // leaves no trace in the stego.
+        let mut orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
+        match channel_adapter {
+            ChannelAdapterChoice::None => {}
+            ChannelAdapterChoice::Twitter => {
+                let adapter: Box<dyn ChannelAdapter> = Box::new(TwitterProfile::default());
+                orchestrator = orchestrator.with_channel_adapter(adapter);
+            }
+        }
         orchestrator.extract(input, &passphrase_str)?
     };
 

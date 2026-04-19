@@ -9,7 +9,7 @@ use crate::hash_guard::HashType;
 use crate::orchestrator::{
     ChannelCompatibility, CoverAnalysis, CoverFormat, EmbedResult, Orchestrator,
 };
-use crate::pipeline::{embed_with_costs_and_hooks, extract_from_cover, usable_positions};
+use crate::pipeline::{embed_with_costs_and_hooks, extract_from_cover_with_opts, usable_positions};
 use crate::plan::EmbedPlan;
 use crate::stealth::StealthTier;
 
@@ -129,6 +129,11 @@ impl Orchestrator for ContentAdaptiveOrchestrator {
     }
 
     fn extract(&self, stego_path: &Path, passphrase: &str) -> Result<Vec<u8>, CoreError> {
-        extract_from_cover(stego_path, passphrase)
+        // ECC route selection must match the embed side: the lossy path
+        // (channel adapter configured) wraps the envelope in RS; the lossless
+        // path does not. Callers that extract from a lossy stego must
+        // configure the same adapter on the extractor.
+        let use_ecc = self.channel_adapter.is_some();
+        extract_from_cover_with_opts(stego_path, passphrase, use_ecc)
     }
 }
