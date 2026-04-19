@@ -18,6 +18,16 @@ pub struct PngImage {
     pub color: PngColor,
 }
 
+/// 8-bit grayscale pixel buffer. This is the canonical carrier the spatial
+/// phantasm pipeline embeds into — one LSB per pixel, no channel selection
+/// ambiguity. RGB covers are flattened to luma via ITU-R BT.601 on read.
+pub struct PngPixels {
+    pub width: u32,
+    pub height: u32,
+    /// `width * height` bytes, row-major.
+    pub pixels: Vec<u8>,
+}
+
 pub fn read(path: &Path) -> Result<PngImage, ImageError> {
     let img = image::open(path).map_err(|e| ImageError::InvalidFormat(e.to_string()))?;
 
@@ -99,6 +109,41 @@ pub fn write(img: &PngImage, path: &Path) -> Result<(), ImageError> {
     Ok(())
 }
 
+/// Read a PNG as an 8-bit grayscale pixel buffer. Any non-grayscale source is
+/// flattened via ITU-R BT.601 luma. Alpha is dropped.
+pub fn read_png_pixels(path: &Path) -> Result<PngPixels, ImageError> {
+    let img = image::open(path).map_err(|e| ImageError::InvalidFormat(e.to_string()))?;
+    let gray = img.to_luma8();
+    let (width, height) = (gray.width(), gray.height());
+    Ok(PngPixels {
+        width,
+        height,
+        pixels: gray.into_raw(),
+    })
+}
+
+/// Write an 8-bit grayscale pixel buffer as a PNG. Errors if the buffer length
+/// does not match `width * height`.
+pub fn write_png_pixels(path: &Path, pixels: &PngPixels) -> Result<(), ImageError> {
+    let expected = pixels.width as usize * pixels.height as usize;
+    if pixels.pixels.len() != expected {
+        return Err(ImageError::InvalidFormat(format!(
+            "pixel buffer length {} does not match {}x{} (expected {})",
+            pixels.pixels.len(),
+            pixels.width,
+            pixels.height,
+            expected,
+        )));
+    }
+    let file = std::fs::File::create(path).map_err(ImageError::Io)?;
+    let mut writer = BufWriter::new(file);
+    use image::ImageEncoder;
+    image::codecs::png::PngEncoder::new(&mut writer)
+        .write_image(&pixels.pixels, pixels.width, pixels.height, ColorType::L8)
+        .map_err(|e| ImageError::InvalidFormat(e.to_string()))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,5 +173,59 @@ mod tests {
         assert_eq!(loaded.width, width);
         assert_eq!(loaded.height, height);
         assert_eq!(loaded.pixels, pixels);
+    }
+
+    #[test]
+    fn png_pixels_roundtrip_grayscale() {
+        let width = 32u32;
+        let height = 24u32;
+        let pixels: Vec<u8> = (0..height * width).map(|i| (i % 256) as u8).collect();
+        let tmp = NamedTempFile::with_suffix(".png").unwrap();
+        let img = PngPixels {
+            width,
+            height,
+            pixels: pixels.clone(),
+        };
+        write_png_pixels(tmp.path(), &img).unwrap();
+        let loaded = read_png_pixels(tmp.path()).unwrap();
+        assert_eq!(loaded.width, width);
+        assert_eq!(loaded.height, height);
+        assert_eq!(loaded.pixels, pixels);
+    }
+
+    #[test]
+    fn png_pixels_rejects_length_mismatch() {
+        let tmp = NamedTempFile::with_suffix(".png").unwrap();
+        let img = PngPixels {
+            width: 16,
+            height: 16,
+            pixels: vec![0u8; 10],
+        };
+        assert!(write_png_pixels(tmp.path(), &img).is_err());
+    }
+
+    #[test]
+    fn png_pixels_flattens_rgb_to_luma_on_read() {
+        // Write an RGB PNG; read_png_pixels should return a luma buffer.
+        let width = 8u32;
+        let height = 8u32;
+        let pixels: Vec<u8> = (0..width * height)
+            .flat_map(|i| {
+                let b = (i & 0xFF) as u8;
+                [b.wrapping_mul(3), b.wrapping_mul(5), b.wrapping_mul(7)]
+            })
+            .collect();
+        let tmp = NamedTempFile::with_suffix(".png").unwrap();
+        let img = PngImage {
+            width,
+            height,
+            pixels,
+            color: PngColor::Rgb8,
+        };
+        write(&img, tmp.path()).unwrap();
+        let luma = read_png_pixels(tmp.path()).unwrap();
+        assert_eq!(luma.width, width);
+        assert_eq!(luma.height, height);
+        assert_eq!(luma.pixels.len() as u32, width * height);
     }
 }

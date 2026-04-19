@@ -2,14 +2,27 @@ use anyhow::Result;
 use log::warn;
 use std::path::{Path, PathBuf};
 
+use phantasm_core::pipeline_spatial;
 use phantasm_core::{
     ChannelAdapter, ChannelProfile, ContentAdaptiveOrchestrator, EmbedPlan, HashSensitivity,
-    HashType, Orchestrator, StealthTier, TwitterProfile,
+    HashType, Orchestrator, SpatialCost, StealthTier, TwitterProfile,
 };
 use phantasm_cost::{
     DistortionFunction, Juniward, Noisy, PassphraseSubset, Sidecar, Uerd, Uniform,
     MAX_NOISE_AMPLITUDE, MIN_KEEP_FRACTION,
 };
+
+/// Detect PNG input by file extension. MVP — doesn't inspect magic bytes.
+/// A mis-extensioned cover (`.jpg` containing PNG data) will route through
+/// the JPEG path and fail at libjpeg; a mis-extensioned PNG (`.png`
+/// containing JPEG data) will route through the spatial path and fail at
+/// `image::open`. Both fail modes are clear, if not friendly.
+fn is_png_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|s| s.to_str())
+        .map(|e| e.eq_ignore_ascii_case("png"))
+        .unwrap_or(false)
+}
 
 use crate::commands::passphrase::PassphraseSource;
 use crate::{
@@ -74,6 +87,56 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
             "WARNING: passphrase on command line is insecure, use --passphrase-env or \
              --passphrase-fd in production"
         );
+    }
+
+    // PNG auto-dispatch: route to the spatial pipeline. This is a structural
+    // branch — PNG covers don't have DCT coefficients, so the JPEG-specific
+    // flags (channel adapter, hash guard, cost-noise, cost-subset) don't
+    // apply. For the MVP we support only `--cost-function uniform` and a new
+    // `s-uniward` selection path (chosen by default if a PNG is passed with
+    // the JPEG-default `uerd`). Any other selection errors out cleanly.
+    if !has_layers && is_png_path(input) {
+        let payload_path = payload.as_ref().unwrap();
+        let passphrase_owned = passphrase.resolve()?;
+        let passphrase_str = passphrase_owned.as_str();
+        let payload_bytes = std::fs::read(payload_path)?;
+
+        if !matches!(channel_adapter, ChannelAdapterChoice::None) {
+            anyhow::bail!("--channel-adapter is not supported for PNG covers in v0.2 (JPEG only)");
+        }
+        if !matches!(hash_guard, HashGuardChoice::None) {
+            anyhow::bail!("--hash-guard is not supported for PNG covers in v0.2 (JPEG only)");
+        }
+
+        let spatial_cost = match cost_function {
+            // The JPEG default `uerd` is meaningless on pixels; fall back to
+            // S-UNIWARD (the spatial-domain academic baseline) silently.
+            CostFunctionChoice::Uerd | CostFunctionChoice::Juniward => SpatialCost::SUniward,
+            CostFunctionChoice::Uniform => SpatialCost::Uniform,
+            CostFunctionChoice::FromSidecar => {
+                anyhow::bail!("--cost-function from-sidecar is not supported for PNG covers")
+            }
+        };
+
+        let result = pipeline_spatial::embed_png(
+            input,
+            &payload_bytes,
+            passphrase_str,
+            spatial_cost,
+            output,
+        )?;
+
+        println!(
+            "Embedded {} bytes into {} (cost_function={}, cover=png)",
+            result.bytes_embedded,
+            output.display(),
+            match spatial_cost {
+                SpatialCost::Uniform => "uniform",
+                SpatialCost::SUniward => "s-uniward",
+            },
+        );
+        println!("Capacity used: {:.1}%", result.capacity_used_ratio * 100.0);
+        return Ok(());
     }
 
     // Multi-layer: not yet implemented — stub output for backwards compatibility

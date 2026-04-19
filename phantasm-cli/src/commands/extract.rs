@@ -1,11 +1,19 @@
 use anyhow::Result;
 use std::path::Path;
 
+use phantasm_core::pipeline_spatial;
 use phantasm_core::{ContentAdaptiveOrchestrator, Orchestrator};
 use phantasm_cost::Uniform;
 
 use crate::commands::passphrase::PassphraseSource;
 use crate::{ChannelAdapterChoice, HashGuardChoice};
+
+fn is_png_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|s| s.to_str())
+        .map(|e| e.eq_ignore_ascii_case("png"))
+        .unwrap_or(false)
+}
 
 pub fn run(
     input: &Path,
@@ -30,14 +38,19 @@ pub fn run(
 
     let passphrase_str = passphrase.resolve()?;
 
-    // Extraction reads the embedded payload directly from the stego JPEG — STC
-    // decoding does not consult the cost function, so any distortion is fine
-    // here. The --channel-adapter and --hash-guard flags are accepted for
-    // forward-compatibility with a future envelope format that auto-detects
-    // them, but v0.1 extract derives positions geometrically from the stego
-    // JPEG and does not need the values at runtime.
-    let orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
-    let payload = orchestrator.extract(input, &passphrase_str)?;
+    let payload = if is_png_path(input) {
+        pipeline_spatial::extract_png(input, &passphrase_str)?
+    } else {
+        // Extraction reads the embedded payload directly from the stego JPEG —
+        // STC decoding does not consult the cost function, so any distortion
+        // is fine here. The --channel-adapter and --hash-guard flags are
+        // accepted for forward-compatibility with a future envelope format
+        // that auto-detects them, but v0.1 extract derives positions
+        // geometrically from the stego JPEG and does not need the values at
+        // runtime.
+        let orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
+        orchestrator.extract(input, &passphrase_str)?
+    };
 
     std::fs::write(output, &payload)?;
 
