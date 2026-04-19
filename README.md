@@ -2,9 +2,13 @@
   <img src="phantasm.png" alt="phantasm" />
 </p>
 
-**Content-adaptive JPEG steganography in Rust.** Research-grade v0.2.0.
+**Content-adaptive JPEG (and PNG) steganography in Rust.** Research-grade v0.3.0.
 
-Phantasm hides data in the DCT coefficients of JPEG images using a content-adaptive distortion minimization scheme (UERD or J-UNIWARD) driven through syndrome-trellis coding, sealed in an authenticated cryptographic envelope (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256), optionally stabilized against social-media re-encoding (Twitter channel adapter, MINICER + ROAST), and optionally constrained to preserve perceptual hashes (pHash/dHash wet-paper guard). The thesis of the project is that combining channel-adaptive preprocessing, content-adaptive distortion, syndrome-trellis coding, perceptual-hash preservation, and modern authenticated encryption in a single tool is a capability no existing steganography tool offers. As of `v0.1.0`, **all five pillars are reachable via the main CLI**.
+Phantasm hides data in the DCT coefficients of JPEG images — or, as of v0.3.0, the pixel LSBs of grayscale PNG images via S-UNIWARD — using a content-adaptive distortion minimization scheme driven through syndrome-trellis coding, sealed in an authenticated cryptographic envelope (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256), optionally stabilized against social-media re-encoding (Twitter channel adapter, MINICER + ROAST + Reed-Solomon ECC), and optionally constrained to preserve perceptual hashes (pHash/dHash wet-paper guard). The thesis of the project is that combining channel-adaptive preprocessing, content-adaptive distortion, syndrome-trellis coding, perceptual-hash preservation, and modern authenticated encryption in a single tool is a capability no existing steganography tool offers.
+
+### What phantasm is (and is not)
+
+**Phantasm defends the confidentiality of a payload that an adversary can see exists.** It is NOT a plausible-deniability tool against an adversary who has trained a CNN on phantasm output — that layer degrades gracefully against casual/off-the-shelf detection but fails against phantasm-aware ML. The [three-layer threat model](#three-layer-defense-framing) below makes the exact boundaries explicit. If your threat model requires "the adversary should not be able to tell this image contains hidden data at all," phantasm is the wrong tool against a well-resourced adversary.
 
 ## Headline research result
 
@@ -37,9 +41,9 @@ Using the research-raw embedding path (`phantasm-bench research-curve`) to measu
 
 All three cost functions sit near the Fridrich RS false-positive floor (~17.5%) at low payloads. At 20k-bit payloads, Uniform blows out to 40% detection while UERD holds at 20% and J-UNIWARD at the noise floor — J-UNIWARD wins the high-capacity / security-critical regime on this corpus.
 
-### Modern CNN steganalysis (v0.2 evaluation)
+### Modern CNN steganalysis (v0.2 + v0.3 evaluation)
 
-A second evaluation against pretrained CNN steganalyzers — JIN-SRNet (Butora/Yousfi/Fridrich 2021, PyTorch) and Aletheia EfficientNet-B0 J-UNIWARD (Daniel Lerch, Keras→ONNX) — confirms phantasm holds up against modern deep-learning adversaries, but with an important reversal: **the optimal cost function inverts.**
+A second evaluation against pretrained CNN steganalyzers — JIN-SRNet (Butora/Yousfi/Fridrich 2021, PyTorch) and Aletheia EfficientNet-B0 J-UNIWARD (Daniel Lerch, Keras→ONNX) — shows phantasm evades *off-the-shelf* CNN detectors with `--cost-function j-uniward`, and with an important reversal vs the classical result: **the optimal cost function inverts.** Against *phantasm-aware* CNNs (ones trained on phantasm stego output), L1 detection folds — see [L1 folds against phantasm-trained CNNs](#attacker-adaptation-l1-folds-against-phantasm-trained-cnns).
 
 | Detector | Cover (FP) | Uniform | UERD | J-UNIWARD |
 |---|---:|---:|---:|---:|
@@ -48,31 +52,35 @@ A second evaluation against pretrained CNN steganalyzers — JIN-SRNet (Butora/Y
 
 Against classical Fridrich RS, **UERD wins**. Against modern JIN-SRNet, **J-UNIWARD wins**. **49.5% of phantasm J-UNIWARD stegos score lower P(stego) than their own cover** — JIN-SRNet sees the stego as more cover-like than the original cover. The Aletheia EffNet-B0 detector (despite severe cover-source mismatch on Picsum) agrees with JIN-SRNet on the ordering in paired-per-cover analysis. **For a modern (deep-learning) threat model, use `--cost-function j-uniward`. For a classical adversary, UERD remains the default.** See [ML_STEGANALYSIS.md § Findings](ML_STEGANALYSIS.md#findings-in-order-of-importance) for the full breakdown.
 
-#### Three-layer defense framing (v0.2 clarification)
+<a id="three-layer-defense-framing"></a>
+#### Three-layer defense framing (canonical as of v0.3)
 
 Phantasm's security stack has **three layers**, and the modern CNN steganalysis research tests only the first one:
 
-| layer | what it defends | what the attacker needs to bypass |
-|---|---|---|
-| **L1 — Detection** | *"does this JPEG contain hidden data at all?"* | a CNN steganalyzer that generalizes to phantasm's modification pattern |
-| **L2 — Position recovery** | *"which coefficients carry the syndrome bits, in what order?"* | the passphrase, to derive the ChaCha12 position permutation |
-| **L3 — AEAD decryption** | *"what are the actual bytes?"* | the passphrase, again — gated by Argon2id + XChaCha20-Poly1305 + HMAC-SHA256 |
+| Layer | Defends | Gates on | v0.3 status |
+|---|---|---|---|
+| **L1 — Detection** | plausible deniability: *"does this JPEG/PNG contain hidden data?"* | a CNN steganalyzer that generalizes to phantasm's modification pattern | **holds against off-the-shelf (J-UNIWARD evades JIN-SRNet at 16.2%); fails against phantasm-aware (96.8% det at 500-cover scale)** |
+| **L2 — Position recovery** | message shape: *"which coefficients carry the syndrome bits, in what order?"* | passphrase (Argon2id + HKDF + ChaCha12-keyed permutation) | **intact, standard primitives** |
+| **L3 — AEAD decryption** | payload confidentiality: *"what are the actual bytes?"* | passphrase (Argon2id + XChaCha20-Poly1305 + HMAC-SHA256 pre-filter) | **intact, standard primitives** |
 
-**L2 and L3 are the load-bearing layers** and use well-studied cryptographic primitives. L1 is the weak layer, and it's the only one the CNN steganalysis research tests. For a confidentiality threat model (which is how phantasm's threat model is scoped — see below), L1 detectability does not gate the security argument. For a plausible-deniability threat model, L1 matters and the results below characterize exactly how strong it is across the adversary spectrum.
+**L2 and L3 are the load-bearing layers** and use well-studied cryptographic primitives. L1 is the weak layer, and it's the only one the CNN steganalysis research tests. For a confidentiality threat model (which is how phantasm's threat model is scoped — see below), L1 detectability does not gate the security argument. For a plausible-deniability threat model, L1 matters and phantasm's honest position is: **L1 protects against casual detection, not against a well-resourced CNN-equipped adversary.**
 
 #### Attacker adaptation: L1 folds against phantasm-trained CNNs
 
-A series of fine-tune experiments (Updates 1-6 in [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md)) establishes how phantasm's L1 holds up against adversaries of increasing capability:
+A series of fine-tune experiments (Updates 1-8 in [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md)) establishes how phantasm's L1 holds up against adversaries of increasing capability:
 
-| Adversary class | J-UNIWARD L1 detection rate |
-|---|---:|
-| Classical Fridrich RS (v0.1.0 baseline) | 30.3% |
-| Off-the-shelf CNN (pretrained JIN-SRNet, no phantasm training) | 28.3% |
-| Off-the-shelf CNN + `--cost-subset 0.6` | **22.1%** |
-| Phantasm-trained CNN, single-passphrase fine-tune | 54.5% |
-| Phantasm-trained CNN, multi-passphrase fine-tune (worst case) | **89.9%** |
+| Adversary class | J-UNIWARD L1 detection rate | Source |
+|---|---:|---|
+| Classical Fridrich RS (v0.1.0 baseline) | 30.3% | v0.1.0 |
+| Off-the-shelf CNN (pretrained JIN-SRNet, no phantasm training) | 28.3% | v0.2 Update 1 |
+| Off-the-shelf CNN + `--cost-subset 0.6` | **22.1%** | v0.2 Update 6 |
+| Phantasm-trained CNN, single-passphrase fine-tune | 54.5% | v0.2 Update 2 |
+| Phantasm-trained CNN, multi-passphrase fine-tune (198 covers) | 89.9% | v0.2 Update 3 |
+| **Phantasm-trained CNN, multi-passphrase fine-tune (500 covers)** | **96.8% (d500) / 97.5% (eval-198)** | **v0.3 Update 7** |
 
-**L1 gracefully degrades across the adversary spectrum.** Against off-the-shelf detectors, J-UNIWARD + the `--cost-subset 0.6` optional flag produces the lowest detection rate we've measured (22.1%) — a 6.2 pp improvement over plain J-UNIWARD. Against a phantasm-aware attacker with multi-passphrase training data, L1 folds to 85-90% detection regardless of cost-function choice. **Phantasm's v0.2 security argument explicitly does not rest on L1** — it rests on L2+L3, which are standard cryptographic primitives that the ML steganalysis research does not attempt to re-evaluate.
+**L1 gracefully degrades across the adversary spectrum.** Against off-the-shelf detectors, J-UNIWARD + the `--cost-subset 0.6` optional flag produces the lowest detection rate we've measured (22.1%) — a 6.2 pp improvement over plain J-UNIWARD. Against a phantasm-aware attacker with multi-passphrase training data and 500 unique covers, L1 detection reaches ~97% regardless of cost-function choice. The v0.3 cover-source-diversity scale-up (Update 7) and iterative adversarial-costs failure (Update 8) together confirm: **every lever we have inside a hand-designed cost-function paradigm is exhausted for defending L1 against a phantasm-aware CNN.** Remaining L1 defense directions (v0.4+) are structurally different — end-to-end differentiable embedding, ADV-EMB/ADV-IMB STC-aware attacks that jointly optimize coefficient *choice* (not just per-coefficient cost), multi-cover payload spreading.
+
+**Phantasm's v0.3 security argument explicitly does not rest on L1** — it rests on L2+L3, which are standard cryptographic primitives that the ML steganalysis research does not attempt to re-evaluate.
 
 #### v0.2 research infrastructure (hidden flags)
 
@@ -84,12 +92,18 @@ Three new hidden research flags on `phantasm embed` for users who want to experi
 
 These flags default to identity behavior. Existing scripts that don't set them continue to produce byte-identical output.
 
-#### What's deferred to v0.3
+#### v0.3 L1 research updates (both closed negatively)
 
-- **Option C-iter** — iterative gradient refinement (PGD-style). Re-compute detector gradient at the partial stego, re-embed, repeat. The standard literature approach; Update 4's single-step infrastructure is the foundation.
-- **Option B'''** — cover-source diversity hardening (500+ unique Picsum covers or BOSSbase). Tests whether Update 3's numbers were a cover-pool artifact.
-- **Composable L1 hardening framework** — a principled cost-function-pipeline builder so users can express their L1 threat model declaratively.
-- **End-to-end differentiable embedding** — replace STC with a differentiable layer. Most ambitious; possibly v0.4.
+- **Option B''' — cover-source diversity hardening (v0.3 Update 7).** Scaled the multi-pass J-UNIWARD fine-tune from 198 covers to 500 unique Picsum covers. Result: detection rate *rises* from 89.9% to **96.8%** on d500 held-out split (97.5% on eval-198). The 89.9% number was NOT a Picsum-corpus overfit artifact; more cover diversity produces a stronger phantasm-aware detector, not a weaker one.
+- **Option C-iter — iterative PGD adversarial costs (v0.3 Update 8).** Built on Update 4's single-step-failed infrastructure with PGD-style iteration. Result: J-UW-multi detection climbed 91.9% → 100.0% across T=0..4 iterations; every hyperparameter config in the 6-way sweep was worse than the J-UNIWARD baseline. **Per-coefficient cost-function adjustment is exhausted as an L1 defense direction.**
+
+#### What's deferred to v0.4+
+
+- **End-to-end differentiable embedding** — replace STC with a differentiable layer so the whole chain can be optimized together. Most ambitious.
+- **ADV-EMB / ADV-IMB STC-aware iterative attacks** — jointly optimize coefficient *choice* (not just per-coefficient cost), aware of STC structure.
+- **Multi-cover payload spreading** — spread the syndrome across N covers; defense in depth for the lossy-channel story.
+- **Channel-adapter RS parameter tuning** — current 30/100 parity/data ratio isn't strong enough for `image` crate QF=85 recompression; next step is 200%+ overhead or bit-level FEC.
+- **Non-AEAD mode for lossy channels** — AEAD's all-or-nothing recovery is brittle under sub-100% bit survival.
 
 For the security-capacity curve, both detectors' detailed results, cross-detector consistency analysis, and the full caveats list, see [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md). Direct links:
 - [TL;DR](ML_STEGANALYSIS.md#tldr)
@@ -115,9 +129,9 @@ For the security-capacity curve, both detectors' detailed results, cross-detecto
 
 ## What phantasm does
 
-- **Encode arbitrary payload bytes into a JPEG cover** using content-adaptive DCT coefficient perturbation
-- **Decode the payload out of a stego JPEG** given the same passphrase
-- **Three content-adaptive cost functions**: Uniform (baseline), UERD (Guo/Ni/Shi 2015, divisibility-based redistribution into textured regions), J-UNIWARD (Holub & Fridrich 2014, Daubechies-8 wavelet residual-based). Selectable via `--cost-function {uniform,uerd,j-uniward}`.
+- **Encode arbitrary payload bytes into a JPEG or PNG cover.** JPEG uses content-adaptive DCT coefficient perturbation; PNG uses spatial-domain S-UNIWARD per-pixel LSB modification (v0.3 MVP, grayscale only).
+- **Decode the payload out of a stego JPEG or PNG** given the same passphrase. Format auto-dispatched from the file extension.
+- **Four content-adaptive cost functions**: Uniform (baseline), UERD (Guo/Ni/Shi 2015, divisibility-based redistribution into textured regions), J-UNIWARD (Holub & Fridrich 2014, Daubechies-8 wavelet residual-based DCT-domain), and **S-UNIWARD (Holub-Fridrich 2014, spatial-domain, v0.3 PNG path)**. Selectable via `--cost-function {uniform,uerd,j-uniward}` on JPEG; PNG auto-uses S-UNIWARD.
 - **Syndrome-trellis coding** (Filler/Judas/Fridrich 2011) at rate 1/4, constraint height 7–12, with **published DDE Lab H̃ reference matrices** (2400 entries from common.cpp) and conditional-probability double-layer decomposition delivering 0.995× bits-per-L1 efficiency vs the asymptotic ML2 bound.
 - **Authenticated encryption envelope**: Argon2id(64 MiB / 3 iterations / 4 threads) → HKDF-SHA256 split into `(aead_key, mac_key)` → XChaCha20-Poly1305 AEAD + HMAC-SHA256 MAC (16-byte truncated) for fast wrong-passphrase detection
 - **Channel adapter (Twitter profile)** via `--channel-adapter twitter`: MINICER-style iterative coefficient stabilization at target QF=85/4:2:0 with ROAST overflow alleviation. 98.7% measured coefficient survival rate on real mozjpeg re-encoding.
@@ -131,28 +145,47 @@ For the security-capacity curve, both detectors' detailed results, cross-detecto
 # Build the workspace
 cargo build --release
 
-# Embed a payload into a JPEG cover (UERD is the default)
+# Embed a payload into a JPEG cover (UERD is the default).
+# Prefer --passphrase-env VAR or --passphrase-fd N over --passphrase; the latter
+# leaves the secret visible in /proc/<pid>/cmdline and in shell history.
+PHANTASM_PASSPHRASE="correct-horse-battery-staple" \
+  ./target/release/phantasm embed \
+    --input cover.jpg \
+    --payload secret.txt \
+    --passphrase-env PHANTASM_PASSPHRASE \
+    --output stego.jpg
+
+# Or via file descriptor (robust against env-var leakage through /proc/<pid>/environ):
 ./target/release/phantasm embed \
     --input cover.jpg \
     --payload secret.txt \
-    --passphrase "correct-horse-battery-staple" \
-    --output stego.jpg
+    --passphrase-fd 0 \
+    --output stego.jpg <<< "correct-horse-battery-staple"
 
-# Use J-UNIWARD for high-capacity / security-critical embeds
+# Use J-UNIWARD against modern CNN steganalysis (off-the-shelf threat model).
+# For a phantasm-aware adversary, L1 folds regardless — see "Attacker adaptation" above.
 ./target/release/phantasm embed \
     --cost-function j-uniward \
     --input cover.jpg \
     --payload secret.txt \
-    --passphrase "correct-horse-battery-staple" \
+    --passphrase-env PHANTASM_PASSPHRASE \
     --output stego.jpg
 
-# Stabilize against Twitter re-encoding (experimental — increases modification count)
+# Grayscale PNG cover via spatial-domain S-UNIWARD (v0.3 MVP).
+# The CLI auto-dispatches by .png extension on both embed and extract.
+./target/release/phantasm embed \
+    --input cover.png \
+    --payload secret.txt \
+    --passphrase-env PHANTASM_PASSPHRASE \
+    --output stego.png
+
+# Stabilize against Twitter re-encoding (research-only in v0.3 — see caveats below).
 ./target/release/phantasm embed \
     --cost-function uerd \
     --channel-adapter twitter \
     --input cover.jpg \
     --payload secret.txt \
-    --passphrase "correct-horse-battery-staple" \
+    --passphrase-env PHANTASM_PASSPHRASE \
     --output stego.jpg
 
 # Preserve pHash via wet-paper constraint (no-op on Robust covers, which is ~75%)
@@ -161,7 +194,7 @@ cargo build --release
     --hash-guard phash \
     --input cover.jpg \
     --payload secret.txt \
-    --passphrase "correct-horse-battery-staple" \
+    --passphrase-env PHANTASM_PASSPHRASE \
     --output stego.jpg
 
 # Check a cover before embedding
@@ -172,49 +205,52 @@ cargo build --release
 # Extract (must match the embed's --channel-adapter and --hash-guard flags)
 ./target/release/phantasm extract \
     --input stego.jpg \
-    --passphrase "correct-horse-battery-staple" \
+    --passphrase-env PHANTASM_PASSPHRASE \
     --output recovered.txt
 
 diff secret.txt recovered.txt   # byte-identical
 ```
 
-- `--cost-function` accepts `uniform`, `uerd` (default), or `j-uniward`. The "right" choice is threat-model dependent: `uerd` wins against classical statistical detectors, `j-uniward` wins against modern CNN steganalysis. See [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md).
-- `--channel-adapter` accepts `none` (default) or `twitter`.
-- `--hash-guard` accepts `none` (default), `phash`, or `dhash`.
-- `phantasm extract` accepts `--channel-adapter` and `--hash-guard` flags for forward compatibility, but they are no-ops in `v0.1.0`: extract derives coefficient positions geometrically from the stego image (keyed on the passphrase + the pHash-stable image salt), and does not need to know which cost function, channel adapter, or hash-guard was used at embed time. Auto-detection metadata in the envelope is a post-v0.1.0 feature.
+- **Passphrase flags** (pick one): `--passphrase-env VAR` reads from a named env var; `--passphrase-fd N` reads from a file descriptor (recommended for pipeline use); `--passphrase "literal"` is still accepted but places the secret in `argv` and is explicitly research-only.
+- `--cost-function` accepts `uniform`, `uerd` (default), or `j-uniward` on JPEG. On PNG, `uniform` passes through, `uerd` / `j-uniward` silently fall back to S-UNIWARD (spatial-domain Holub-Fridrich 2014), and `from-sidecar` returns a clean error.
+- `--channel-adapter` accepts `none` (default) or `twitter`. **Honest v0.3 current state:** the adapter is an *architectural improvement* (Reed-Solomon ECC is now wired into the lossy path as of commit `cf8b1ac`), not a turnkey deliverability feature. Default RS parameters (30/100 parity/data, ~30% overhead, ~15 byte-error corrections per 3200-byte block) are **not yet strong enough to survive realistic JPEG recompression** — `phantasm-bench ber-sweep` shows 0/40 exact matches at 100/500/1000/3000-byte payloads on 720-pixel covers through `image` crate QF=85. Manual no-recompression round-trip with the adapter works at 55% capacity. **Treat `--channel-adapter` as research-only until v0.4 FEC tuning.**
+- `--hash-guard` accepts `none` (default), `phash`, or `dhash`. JPEG only in v0.3; PNG hash-guard errors out with a clear message.
+- `phantasm extract` accepts `--channel-adapter` and `--hash-guard` flags for forward compatibility, but they are no-ops: extract derives coefficient positions geometrically from the stego image (keyed on the passphrase + the pHash-stable image salt), and does not need to know which cost function, channel adapter, or hash-guard was used at embed time.
 
 ## What doesn't work yet
 
-`v0.1.0` is a research checkpoint, not a finished tool. The following are explicitly NOT implemented or are MVP-level:
+`v0.3.0` is a research checkpoint, not a finished tool. The following are explicitly NOT implemented or are MVP-level:
 
-- **Only one channel profile (Twitter).** Instagram, Facebook, and other social media services have their own re-encode pipelines. `v0.1.0` ships with a Twitter profile only (QF=85, 4:2:0). Other channels need dedicated profiles; MINICER doesn't generalize without them. The Twitter profile is also a single-block approximation and does NOT model Twitter's rescale step for images larger than 4096 pixels.
-- **pHash/dHash only, no PDQ.** Facebook's PDQ algorithm (which underlies CSAM-matching databases) is NOT implemented. If you need PDQ-preservation you must evaluate independently.
-- **No pre-nudge for Sensitive covers.** About 10% of images are classified as pHash-Sensitive by the 3-tier classifier. On these, the hash guard falls back to large wet sets that may exhaust effective capacity. Pre-nudging the cover to move hash bits away from their decision thresholds before embedding is a known-good technique that is not yet implemented.
-- **Limited ML steganalysis coverage.** A first-pass evaluation against two pretrained CNN detectors (JIN-SRNet, Aletheia EfficientNet-B0) is documented in [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md) — both detectors confirm phantasm J-UNIWARD evades modern deep-learning attacks at typical payloads. **What's still missing:** a UERD-trained CNN detector (no public weights exist; v0.2 candidate work item), an adversarially-trained cost function targeting a specific detector, BOSSbase / ALASKA2 cross-corpus validation, and any evaluation against fine-tuned production-grade detectors (which an actual nation-state adversary would deploy).
-- **Envelope format is still considered pre-stable.** `v0.1.0` uses envelope format v2 (HMAC-SHA256-16 MAC + HKDF key split + FORMAT_VERSION byte). The next envelope revision is expected to add auto-detection of `--channel-adapter` and `--hash-guard` configuration, which will be a format break.
+- **Channel-adapter deliverability is research-only.** The `--channel-adapter twitter` path now has Reed-Solomon ECC wired end-to-end (v0.3, commit `cf8b1ac`), but default RS parameters (30/100 parity/data) are not strong enough to survive realistic QF=85 recompression — `phantasm-bench ber-sweep` shows 0/40 exact-match extracts both pre- and post-ECC-wiring on the default config. Manual no-recompression round-trips work. Realistic delivery needs stronger RS parameters (200%+ overhead), bit-level FEC, or non-AEAD mode — all v0.4 scope. Instagram, Facebook, and other channels need dedicated profiles; MINICER doesn't generalize without them.
+- **PNG support is grayscale-only MVP.** RGB PNGs are flattened to luma via ITU-R BT.601 on read; the output is an 8-bit grayscale PNG. Channel adapter on PNG, pHash-stable PNG salt, RGB color preservation, and PNG in `phantasm analyze` are all deferred.
+- **pHash/dHash only, no PDQ.** Facebook's PDQ algorithm (which underlies CSAM-matching databases) is NOT implemented.
+- **No pre-nudge for Sensitive covers.** About 10% of images are classified as pHash-Sensitive by the 3-tier classifier. On these, the hash guard falls back to large wet sets that may exhaust effective capacity.
+- **L1 folds against phantasm-aware CNNs.** The v0.3 cover-source-diversity scale-up (Update 7) pushes detection to 96.8% at 500-cover scale; the iterative adversarial-costs experiment (Update 8) failed to defend. Every lever inside a hand-designed cost-function paradigm is exhausted. **Do NOT use phantasm for plausible-deniability against an adversary who can train a CNN on phantasm output.** The confidentiality of the payload (L2 + L3) is intact; the existence of the payload is not hidden from a phantasm-aware ML adversary.
+- **Envelope format is still considered pre-stable.** `v0.3.0` uses envelope format v2 (HMAC-SHA256-16 MAC + HKDF key split + FORMAT_VERSION byte). The next envelope revision is expected to add auto-detection of `--channel-adapter` and `--hash-guard` configuration, which will be a format break.
 - **CLI is pre-stable.** Flag names may still shift before `v1.0.0`.
-- **JPEG covers only in `v0.1.0`.** Phantasm embeds in JPEG DCT coefficients via the content-adaptive cost path; PNG (or any other lossless format) is not accepted as an input cover. PNG support is scheduled for Phase 3 of the roadmap, which adds spatial-domain embedding with S-UNIWARD costs — see [PLAN.md](PLAN.md) §6 Phase 3. A PNG decode module exists in `phantasm-image` but is not wired into the embed pipeline in `v0.1.0`.
 - **No external security review.** Cryptographic primitives are used via established crates (`argon2`, `chacha20poly1305`, `hmac`, `sha2`, `hkdf`) but the composition, envelope layout, and integration have not been reviewed by anyone outside the project.
 
 ## Threat model
 
+Phantasm is a **confidentiality** tool, not a plausible-deniability tool. See the [three-layer defense framing](#three-layer-defense-framing) for the exact scope.
+
 Phantasm is intended for scenarios where:
 
-1. You want to send a confidential payload over a channel that allows JPEG images but is untrusted (e.g., casual adversaries, automated scanners, content-inspection middleboxes).
-2. The adversary has access to the stego image and can run classical and statistical steganalysis on it.
-3. The adversary does NOT have access to the cover, nor to any out-of-band channel keyed to the sender/receiver.
-4. The adversary does NOT re-encode or compress the image in transit — **with the caveat that the Twitter channel adapter (`--channel-adapter twitter`) is a working MVP for one specific re-encode profile (QF=85, 4:2:0) at 98.7% measured coefficient survival.** Other channels (Facebook, Instagram, WhatsApp, etc.) destroy the embedded payload.
+1. You want to send a confidential payload over a channel that allows JPEG or PNG images.
+2. The adversary may see the stego image and may know (or suspect) it contains hidden data — **we do not try to hide this from a phantasm-aware ML adversary.**
+3. The adversary does NOT have your passphrase. Cryptographic confidentiality (L3) and position-recovery (L2) both gate on the passphrase via Argon2id + HKDF + XChaCha20-Poly1305 + HMAC-SHA256.
+4. The adversary does NOT re-encode or compress the image in transit (or the channel adapter's ECC is strong enough to survive it — **which at default parameters in v0.3 it is not**; see `--channel-adapter` caveats above).
 
-Note on cost-function selection in this threat model: against classical statistical detectors (Fridrich RS, SRM-lite, sample pairs), `--cost-function uerd` (the default) is the right choice and reduces detection rate by 2.5×. Against modern CNN steganalysis, `--cost-function j-uniward` is the right choice — pretrained PyTorch JIN-SRNet and Keras Aletheia EfficientNet-B0 both fail to fire on phantasm J-UNIWARD output at typical payload (see [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md)). The cost-function ordering inverts depending on the threat model.
+Note on cost-function selection within this threat model: against casual / off-the-shelf adversaries, cost-function choice genuinely differentiates. Against classical statistical detectors (Fridrich RS, SRM-lite), `--cost-function uerd` is the right choice and reduces detection rate by 2.5×. Against off-the-shelf modern CNN steganalysis (JIN-SRNet / Aletheia EffNet-B0), `--cost-function j-uniward` is the right choice — JIN-SRNet fires on phantasm J-UNIWARD output at only 16.2% above its 7.1% cover false-positive baseline. **Against a phantasm-aware CNN (Updates 3 + 7), neither cost function defends** — detection reaches ~97% at 500-cover training scale.
 
 Phantasm is NOT suitable for:
 
-- Defeating a well-resourced nation-state adversary running modern deep-learning steganalysis on your image with the same cover source they trained on (the cover-source mismatch defense in our eval may not hold against a targeted adversary)
-- Defeating services other than Twitter that re-encode uploaded JPEGs (Facebook, Instagram, WhatsApp, etc. need dedicated channel profiles that are not yet implemented)
-- Long-term archival where envelope-format stability matters
-- Any situation where the confidentiality of the payload is life-critical
+- **Plausible deniability against a phantasm-aware adversary.** Any entity with the ability to train a CNN on phantasm output can detect phantasm stego at ~97%. Border crossings, compliance checks, or any setting where the mere fact of hidden data is incriminating are out of scope.
+- **Services that re-encode uploaded JPEGs** other than in the no-recompression case. Even `--channel-adapter twitter` at default RS parameters does not survive `image` crate QF=85 recompression in our BER sweep. Realistic delivery through Twitter/Facebook/Instagram/WhatsApp is v0.4 scope.
+- **Long-term archival** where envelope-format stability matters (envelope format v2 will break before v1.0).
+- **Life-critical confidentiality.** There is no external security review.
 
-The cryptographic primitives (Argon2id, XChaCha20-Poly1305, HMAC-SHA256, HKDF-SHA256) are used via the established `argon2`, `chacha20poly1305`, `hmac`, `sha2`, and `hkdf` crates. The composition, key schedule, and envelope layout are project-specific and have NOT been externally reviewed. Do not treat `v0.1.0` as production-ready cryptography.
+The cryptographic primitives (Argon2id, XChaCha20-Poly1305, HMAC-SHA256, HKDF-SHA256) are used via the established `argon2`, `chacha20poly1305`, `hmac`, `sha2`, and `hkdf` crates. The composition, key schedule, and envelope layout are project-specific and have NOT been externally reviewed. Do not treat `v0.3.0` as production-ready cryptography.
 
 ## Project layout
 
@@ -292,4 +328,6 @@ at your option. Unless you explicitly state otherwise, any contribution intentio
 
 ## Status
 
-`v0.2.0` ships the modern ML-steganalysis evaluation (Updates 1-6 in [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md)), the three-layer L1/L2/L3 threat-model framing, and three new hidden research flags (`--cost-subset`, `--cost-noise`, `--cost-sidecar`) plus the `dump-costs` subcommand — all of which default to identity behavior and do not break v0.1.0 scripts. `v0.1.0`'s main CLI surface and envelope format are unchanged. This is still a research-grade checkpoint, not production-ready cryptographic software: expect envelope-format breaks before `v1.0.0`, expect CLI flag shifts, and don't use it for anything where the confidentiality of the payload is life-critical. Read [STATUS.md](STATUS.md) for the full picture of what works and what's planned, and [CHANGELOG.md](CHANGELOG.md) for the detailed release notes.
+`v0.3.0` ships: (1) **audit-driven CLI passphrase-handling fixes** — `--passphrase-env` and `--passphrase-fd` added, argv-visibility and log-file-persistence closed; (2) **PNG / S-UNIWARD spatial-domain MVP** — grayscale PNG cover support with the spatial-domain cost function; (3) **Reed-Solomon ECC wired into the channel-adapter lossy path** — architectural plumbing exists, default parameters are not yet strong enough to survive realistic JPEG recompression (v0.4 scope); (4) **two L1 research workstreams closed negatively** — cover-source diversity at 500 covers pushes detection UP to 96.8% (Update 7); iterative PGD adversarial costs produced 100% detection across all swept configs (Update 8); per-coefficient cost-function adjustment is exhausted as an L1 defense direction. **No breaking changes** to the v0.2.0 envelope format (still v2) or existing CLI flags. The CLI self-identifies as `phantasm 0.3.0 — research-grade`.
+
+This is still a research-grade checkpoint, not production-ready cryptographic software: expect envelope-format breaks before `v1.0.0`, expect CLI flag shifts, and don't use it for anything where the confidentiality of the payload is life-critical. Read [STATUS.md](STATUS.md) for the full picture, [ML_STEGANALYSIS.md](ML_STEGANALYSIS.md) for the L1 research record (now through Update 8), and [CHANGELOG.md](CHANGELOG.md) for detailed release notes.

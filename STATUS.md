@@ -1,11 +1,13 @@
 # Phantasm — Project Status
 
-**Date:** 2026-04-13 (v0.2.0 shipped)
-**Session length:** ~13 hours v0.1.0 + additional ML-steganalysis research drive for v0.2.0
-**Workspace state:** `cargo test --workspace` 235+ passing / 0 failing, `cargo clippy` clean, `cargo fmt` clean
-**Git state:** `v0.1.0-alpha` at commit `82b89a4`, `v0.1.0` at commit `1617dad`, **`v0.2.0` at the release commit of this update**. Pushed to `https://github.com/exec/phantasm`.
+**Date:** 2026-04-19 (v0.3.0 shipped)
+**Session length:** ~13 hours v0.1.0 + ML-steganalysis research drive for v0.2.0 + L1/channel-adapter/PNG burst for v0.3.0
+**Workspace state:** `cargo test --workspace` **277 passing / 0 failing**, `cargo clippy` clean, `cargo fmt` clean
+**Git state:** `v0.1.0-alpha` at commit `82b89a4`, `v0.1.0` at commit `1617dad`, `v0.2.0` at commit `8432cf7`, **`v0.3.0` at the release commit of this update**. Pushed to `https://github.com/exec/phantasm`.
 **v0.1.0 shipping headline (preserved):** UERD cuts classical Fridrich RS detection rate from **66.7% → 26.8%** at 198-image corpus scale (40 pp drop, 2.5× reduction, paired 195/198). See §5 Finding 8.
-**v0.2.0 shipping headline:** Six-update modern-CNN steganalysis evaluation (Updates 1-6 in `ML_STEGANALYSIS.md`). Honest characterization of L1 detection across the adversary spectrum: J-UNIWARD evades off-the-shelf JIN-SRNet at 16.2% detection (vs 28.3% baseline); a phantasm-trained multi-passphrase CNN fine-tune catches it at 89.9%. New `--cost-subset` hidden flag produces a 6.2 pp L1 improvement against off-the-shelf detectors. Three-layer threat-model framing (L1 detection / L2 position recovery / L3 AEAD decryption) makes explicit that **phantasm's security argument rests on L2+L3** (standard cryptographic primitives), not L1 stealth. No breaking changes to the v0.1.0 CLI or envelope format. See §5 Finding 9 for the full numbers.
+**v0.2.0 shipping headline (preserved):** Six-update modern-CNN steganalysis evaluation (Updates 1-6 in `ML_STEGANALYSIS.md`). Honest characterization of L1 detection across the adversary spectrum: J-UNIWARD evades off-the-shelf JIN-SRNet at 16.2% detection (vs 28.3% baseline); a phantasm-trained multi-passphrase CNN fine-tune catches it at 89.9%. Three-layer threat-model framing (L1 detection / L2 position recovery / L3 AEAD decryption).
+**v0.3.0 shipping headline:** Honest post-burst reality. (1) **L1 cover-source-diversity question is CLOSED NEGATIVELY** — retraining the Update 3 multi-pass J-UNIWARD fine-tune on 500 unique covers pushes detection from 89.9% to **96.8% on the d500 held-out split** (and 97.5% on eval-198). More cover diversity produces a *stronger* phantasm-aware detector, not a weaker one. (2) **Iterative PGD adversarial costs (Option C-iter) FAILED** — J-UW-multi detection climbed 91.9% → 100.0% across T=0..4 iterations; per-coefficient cost-function adjustment is exhausted as an L1 defense direction. (3) **Two Qwen-audit MEDIUMs closed**: `--passphrase-env VAR` and `--passphrase-fd N` land; `warn!()` passphrase-warning calls removed. (4) **Channel-adapter Reed-Solomon ECC wired** into the lossy path (commit `cf8b1ac`); default RS parameters still produce 0/40 exact-match extracts through `image` crate QF=85 recompression. The adapter is an architectural improvement (plumbing now exists) but not a turnkey deliverability feature. (5) **PNG / S-UNIWARD spatial-domain MVP** ships (commit `20c7f1c`). No breaking changes to the v0.2.0 envelope format (still v2). See §2 burst log for full detail.
+**v0.3.0 positioning sentence:** Phantasm defends the confidentiality of a payload that an adversary can see exists. It is NOT a plausible-deniability tool against an adversary who has trained a CNN on phantasm output — that layer degrades gracefully against casual/off-the-shelf detection but fails against phantasm-aware ML.
 **Five-pillar thesis:** All reachable via the `phantasm` CLI in v0.1.0:
   1. **Content-adaptive cost functions** — `--cost-function {uniform, uerd, j-uniward}`
   2. **Syndrome-trellis coding** — published DDE Lab H̃ tables (Filler 2011) + conditional-probability double-layer at 0.995× bits/L1
@@ -210,6 +212,38 @@ Aletheia RS (faithful Rust port) on fresh stego samples:
 - `stego_uerd.jpg` (fresh, post-refactor): 0.007 (clean)
 
 Single-image detection is noisy around the 0.05 threshold. UERD's rate is consistently 4× lower than Uniform's, but both fall clean-side in single-sample tests. Population-scale RS on the corpus is the remaining research question.
+
+### v0.2 → v0.3 burst (2026-04-14 through 2026-04-19) — five workstreams, six commits on main ahead of v0.2.0
+
+The burst that produced v0.3.0. Five threads ran against different parts of the system: two L1 research questions, a channel-adapter reality-check, two external-audit MEDIUMs, and a PNG/S-UNIWARD MVP. The mix of results — positive ships and significant narrative corrections — is the central story of this release.
+
+**Commit sequence on top of v0.2.0 (`8432cf7`):**
+
+| Commit | Scope | Outcome |
+|---|---|---|
+| `2d80412` | `phantasm-bench ber-sweep` subcommand | **DONE** — harness for end-to-end payload survival. Exposed the channel-adapter BER reality: **0/40 exact matches** on both adapter=twitter and adapter=none arms pre-ECC-wiring. Root cause: 98.7% coefficient survival ≠ 100%, and AEAD aborts on any single ciphertext bit flip. This closed a v0.2.0 deferred item ("end-to-end BER unmeasured") with a harder number than expected. |
+| `59cde9c` | Cover-source diversity 500 — fetch + stego production | **DONE** — fetch_corpus extended from 198 → 500 unique Picsum seeds at qf85/720 (`phantasm-0001..0500`). Manifest committed; images gitignored. 2500 multi-pass stegos produced locally for the d500 fine-tune. |
+| `0da3f3c` | Qwen audit MEDIUMs 1 + 2 — secure passphrase input | **DONE** — `--passphrase-env VAR` and `--passphrase-fd N` added, mutually exclusive with `--passphrase`. `warn!()` passphrase-warning calls removed (they persisted to log files under `RUST_LOG=warn`); `eprintln!()` to stderr kept. 17 new CLI tests. See `QWEN_AUDIT.md` for the full findings context. |
+| `20c7f1c` | PNG / S-UNIWARD spatial-domain MVP | **DONE** — grayscale PNG cover support. 8-bit reads, 8-bit writes, ITU-R BT.601 luma flatten for RGB PNGs on read. Spatial-domain S-UNIWARD (Holub-Fridrich 2014 per-pixel residuals, DB8 wavelet, σ=1/64 stabilization) in new `phantasm-cost/src/s_uniward.rs`. New `phantasm-core/src/pipeline_spatial.rs` reuses ChaCha12 permutation + Argon2id envelope over pixel LSBs with STC(h=7). CLI auto-dispatches by `.png` extension. 120-byte snippet round-trips byte-identical through a programmatically-generated 128×128 grayscale PNG fixture. |
+| `c8202c5` | Cover-source diversity 500 — training complete | **DONE NEGATIVELY** — Re-ran Update 3's multi-pass J-UW fine-tune recipe on fishbowl (RTX 5070) with d500. **Result: detection rate goes UP, not down.** 96.8% J-UW detection on d500 held-out split (340 stegos); 97.5% on eval-198. Delta vs Update 3's 89.9%: +6.9 pp primary, +7.6 pp on eval-198. **The 89.9% number was NOT a Picsum-corpus overfit artifact.** Option B''' (cover-source diversity) closed negatively. Worst-case L1 detection at 500-cover scale is ~97%. Fishbowl paths: `~/phantasm-eval/corpus-diversity-500/runs/juw_d500_v1/`. See `ML_STEGANALYSIS.md` § Update 7. |
+| `cf8b1ac` | Wire Reed-Solomon ECC into lossy channel path | **DONE (partial win)** — Envelope → RS(100 data / 30 parity / 32-byte shards) → length-prefix → STC on the encode side; symmetric on extract. Envelope format byte unchanged (still v2). **Default RS parameters are still undersized** for the observed bit-error rate after `image` crate QF=85 recompression: post-wiring `ber-sweep` still shows 0/40 exact matches at 100/500/1000/3000-byte payloads on 720-pixel covers. Manual no-recompression round-trip with `--channel-adapter twitter` ✅ succeeds at 3000 B / 55% capacity. **So: the adapter is an architectural improvement (the plumbing now exists), not yet a turnkey deliverability feature.** Stronger RS params (200%+ overhead), bit-level FEC, or non-AEAD mode are v0.4 scope. |
+
+**One additional research workstream with no commit:** Iterative PGD adversarial costs (Option C-iter). Built on Update 4's single-step-failed infrastructure with PGD-style iteration (T=4, alpha=2.0, warm-start from stego, max-abs normalization). **Result: J-UW-multi detection went 91.9% → 100.0% across T=0..4.** Swept 6 hyperparameter configs (T=4/8, alpha=0.5/2/5/-2, warm=cover/stego, norm=max-abs/percentile). **Every config was worse than the J-UNIWARD baseline.** Sign-flip control (alpha=-2) also produced 100% detection, ruling out a direction bug. **Implication:** per-coefficient cost-function adjustment is exhausted as an L1 defense against a trained CNN. The Update 4 diagnosis (linear-transport cost manipulation can't trick a non-linear detector after STC+JPEG quantization) escalates to iterative formulations too. Script at `scratch/advcost-iter/iterative_refine.py` (kept, gitignored). Fishbowl artifacts: `~/phantasm-eval/advcost/iter-full-T4-a2-stego/`. See `ML_STEGANALYSIS.md` § Update 8 for the trajectory and hyperparameter-sweep tables.
+
+**Also landed as part of the v0.3 cut (version-cutter scope, separate commit):** workspace version bump `0.2.0 → 0.3.0` across 10 Cargo.toml files; CLI self-identification string fixed from `phantasm 0.1.0 — not for production use` to `phantasm 0.3.0 — research-grade`; `MINIMAX_AUDIT.md`, `QWEN_AUDIT.md`, and `QWEN_AUDIT_RE_MINIMAX.md` tracked at the repo root; `scratch/` added to `.gitignore`.
+
+### v0.3 L1 story at a glance
+
+| Adversary class | J-UNIWARD L1 detection rate | Source |
+|---|---:|---|
+| Classical Fridrich RS (v0.1.0 baseline) | 30.3% | v0.1.0 §5 Finding 8 |
+| Off-the-shelf CNN (pretrained JIN-SRNet, no phantasm training) | 28.3% | v0.2.0 Update 1 |
+| Off-the-shelf CNN + `--cost-subset 0.6` | **22.1%** | v0.2.0 Update 6 |
+| Phantasm-trained CNN, single-passphrase fine-tune | 54.5% | v0.2.0 Update 2 |
+| Phantasm-trained CNN, multi-passphrase fine-tune (198 covers) | 89.9% | v0.2.0 Update 3 |
+| **Phantasm-trained CNN, multi-passphrase fine-tune (500 covers)** | **96.8% (d500) / 97.5% (eval-198)** | **v0.3.0 Update 7** |
+
+The v0.3 burst's two L1 research probes (cover-source diversity at scale, iterative adversarial costs) both pushed in the same direction: **every lever we have within a hand-designed cost-function paradigm is exhausted** for defending against a fully-adapted phantasm-aware CNN. The cost-function research direction is closed. Remaining defense directions (v0.4+) are structurally different: end-to-end differentiable embedding, ADV-EMB/ADV-IMB STC-aware iterative attacks that jointly optimize coefficient *choice* (not just per-coefficient costs), and multi-cover payload spreading.
 
 ---
 
@@ -679,6 +713,26 @@ Session memory worth saving (if you haven't already):
 ---
 
 ## 11. Publishability — the path from now to v0.1.0
+
+### Deferred backlog as of v0.3.0 (2026-04-19)
+
+**Closed in the v0.2→v0.3 burst (negatively or positively):**
+- **Cost-function research as a defense against phantasm-aware CNNs** — CLOSED NEGATIVELY. Option B''' (cover-source diversity at 500 covers) and Option C-iter (iterative PGD adversarial costs) both confirmed that per-coefficient cost-function adjustment cannot lower L1 detection against a fully-adapted attacker. Worst case is 96.8% (d500) / 97.5% (eval-198). See `ML_STEGANALYSIS.md` Updates 7 + 8.
+- **Qwen audit MEDIUMs 1 + 2** (CLI passphrase exposure) — CLOSED. `--passphrase-env VAR` and `--passphrase-fd N` ship in v0.3.
+- **Channel-adapter end-to-end BER unmeasured** (v0.2.0 H3) — CLOSED. `ber-sweep` measured it; the adapter's real number is 0/40 exact matches after `image` crate QF=85 recompression, both pre- and post-ECC-wiring at default RS parameters. Architectural plumbing now exists; RS tuning is v0.4.
+- **PNG / spatial-domain embedding infeasibility** — CLOSED POSITIVELY. Grayscale PNG + S-UNIWARD spatial-domain MVP ships in v0.3. See commit `20c7f1c`.
+
+**Next research / engineering directions (v0.4+):**
+- **RS parameter tuning** for the channel adapter — current 30/100 parity/data is not strong enough for `image` crate QF=85 recompression; next step is 200%+ overhead or bit-level FEC.
+- **Non-AEAD lossy-channel mode** — AEAD's all-or-nothing recovery is brittle under sub-100% bit survival; a MAC-then-per-chunk-decrypt mode would degrade gracefully.
+- **Multi-cover payload spreading** — spread the syndrome across N covers so any single cover can tolerate higher BER; defense in depth for the lossy-channel story.
+- **End-to-end differentiable embedding / ADV-EMB / ADV-IMB STC-aware attacks** — the remaining L1-defense direction after cost-function research closed. Jointly optimize coefficient *choice* (not just per-coefficient cost), aware of STC structure.
+- **PNG polish** — channel adapter on PNG, pHash-stable PNG salt, RGB color preservation, PNG in `phantasm analyze`. All deferred from the v0.3 PNG MVP.
+- **External security review** — still pending. Cryptographic primitives are used via established crates; the composition has not been reviewed externally. The most load-bearing remaining task for a production claim.
+
+The historical publishability plan below (Tiers 0-2) is preserved as a record of how v0.1.0 was shipped; v0.3.0's forward-looking deferred list is the block immediately above.
+
+---
 
 Three-tier plan discussed at end-of-day 1. Currently at "Tier 0: private repo with working tool, no public artifacts."
 

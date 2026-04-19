@@ -1,6 +1,6 @@
 # Phantasm — Modern ML Steganalysis Evaluation
 
-**Status:** v0.2 release, 2026-04-13. Complements the classical Fridrich RS results in STATUS.md §5 Finding 8 with a modern-CNN L1 detectability evaluation. Further L1 research is scheduled for v0.3.
+**Status:** v0.3 release, 2026-04-19. Complements the classical Fridrich RS results in STATUS.md §5 Finding 8 with a modern-CNN L1 detectability evaluation. Updates 1-6 shipped with v0.2.0 on 2026-04-13; Updates 7 + 8 were added during the v0.2 → v0.3 burst and close the remaining L1 research questions (cover-source diversity scale-up, iterative adversarial costs) negatively.
 
 ## Scope (read this first)
 
@@ -39,6 +39,10 @@ Tested phantasm at the v0.1.0 default payload (3 KB, ~0.2 bpnzac) on 198 Picsum 
 **Update 3 (Option B'' extended dataset, same day):** Re-ran both fine-tunes with 5 passphrases per cover (5× larger training set as passphrase-variation augmentation). UERD detection lifts to 85.4% and J-UNIWARD detection lifts to **89.9%** — J-UNIWARD is now slightly *more* detectable than UERD at the worst-case attacker-adaptation level. The 23 pp J-UNIWARD-vs-UERD gap from Update 2 is gone. **In the worst case, against an attacker who has trained specifically on phantasm output with sufficient data, neither cost function defends.** The "use J-UNIWARD" recommendation is now scope-limited: it holds against off-the-shelf and lightly-adapted detectors, not against a fully-adapted attacker. See § Update 3 below.
 
 **Update 4 (Option C single-step adversarial costs, same day):** Built the full sidecar-cost infrastructure (Python computes per-coefficient costs, Rust embed loads them via a new `--cost-function from-sidecar` flag) and ran three single-step gradient-based cost variants against the J-UW-multi target detector: pure |gradient|, sign-aware ReLU(±gradient), and J-UNIWARD-base × (1 + α × adv_signal) hybrid at α=2 and α=10. **None of them moved the needle.** Pure adversarial costs were dramatically WORSE (98-99% detection vs 89.9% baseline — the modifications moved out of J-UNIWARD's natural distribution and the detector flagged them as anomalous). Hybrid costs were statistically indistinguishable from pure J-UNIWARD (~89-91% detection at all alpha values). **Single-step gradient costs are fundamentally insufficient against well-trained detectors** — the linear approximation breaks down after the first few coefficient flips, exactly as the ADV-EMB literature documents. The infrastructure works; the gradient strategy doesn't. Iterative refinement is the standard next step. See § Update 4 below for the full attempt log.
+
+**Update 7 (Option B''' cover-source diversity, v0.3 burst):** Extended the Picsum corpus from 198 to 500 unique covers (seeds `phantasm-0001..0500`) and re-ran Update 3's multi-pass J-UNIWARD fine-tune recipe. Result: **J-UNIWARD detection rises to 96.8% on the d500 held-out split (97.5% on eval-198)** — +6.9 pp / +7.6 pp above Update 3's 89.9%. The 89.9% number was NOT a cover-pool artifact; more cover diversity produces a stronger phantasm-aware detector. Option B''' closed negatively. See § Update 7.
+
+**Update 8 (Option C-iter iterative PGD adversarial costs, v0.3 burst):** Added PGD-style iteration to Update 4's infrastructure — re-compute the detector gradient at the partial stego each round, re-embed with biased costs, repeat. Result: **J-UW-multi detection climbed 91.9% → 100.0% across T=0..4 iterations.** Every config in a 6-way hyperparameter sweep (T=4/8, α=0.5/2/5/-2, warm=cover/stego, norm=max-abs/percentile) was worse than the J-UNIWARD baseline. Sign-flip control (α=-2) also produced 100% detection, ruling out a direction bug. **Per-coefficient cost-function adjustment is exhausted as an L1 defense direction against trained non-linear detectors.** Remaining L1 defense directions (v0.4+) are structurally different: end-to-end differentiable embedding, ADV-EMB / ADV-IMB, multi-cover spreading. See § Update 8.
 
 | Detector | Cover (FP) | Uniform | UERD | J-UNIWARD |
 |---|---:|---:|---:|---:|
@@ -439,20 +443,114 @@ Two findings pulling in opposite directions:
 
 The CLI flags default to identity behavior. Existing scripts that don't set them continue to work exactly as before.
 
-### The honest v0.2 L1 story
+### The honest v0.3 L1 story (updated with Updates 7 + 8)
 
-After Updates 1-6, here's the most compact true statement about phantasm's L1 detectability at 3 KB payload (~0.2 bpnzac) on Picsum covers:
+After Updates 1-8, here's the most compact true statement about phantasm's L1 detectability at 3 KB payload (~0.2 bpnzac) on Picsum covers:
 
-| threat | L1 detection rate | defense level |
+| Threat | L1 detection rate | Defense level |
 |---|---|---|
 | Classical Fridrich RS | 26.8% (UERD) / 30.3% (J-UNIWARD) | strong (-40 pp vs Uniform LSB) |
 | Modern off-the-shelf CNN (JIN-SRNet) | 28.3% (J-UW) / 22.1% (J-UW + subset=0.6) | moderate; subset flag adds 6.2 pp |
 | Phantasm-trained CNN (single-passphrase fine-tune) | 54.5% (J-UW) | weak |
-| Phantasm-trained CNN (multi-passphrase fine-tune) | **89.9% (J-UW) / 98.8% (J-UW + subset)** | **fails** |
+| Phantasm-trained CNN (multi-passphrase fine-tune, 198 covers) | 89.9% (J-UW) / 98.8% (J-UW + subset) | **fails** |
+| **Phantasm-trained CNN (multi-passphrase fine-tune, 500 covers — Update 7)** | **96.8% on d500 held-out / 97.5% on eval-198** | **fails harder** |
 
-L1 gracefully degrades from "strong" to "fails" across the threat-model spectrum. Against the strongest threat (phantasm-trained CNN with sufficient data), **L1 provides ≈10% stealth at most** — roughly equivalent to the cover-source mismatch confound. Against anything short of that, phantasm's L1 is meaningfully better than naive LSB and competitive with the academic state of the art for hand-designed cost functions.
+L1 degrades from "strong" to "fails harder" across the threat-model spectrum. Against the strongest threat we have measured (phantasm-trained CNN with 500 unique covers and 5 passphrases per cover), **L1 provides ≈3% stealth** — roughly at the floor of test-set noise. Update 8 (iterative PGD adversarial costs) established that iteratively tuning per-coefficient costs cannot pull detection back down against such an attacker: every hyperparameter config in the 6-way sweep produced 100% detection.
 
-**Phantasm's v0.2 security argument does not rest on L1.** It rests on L2 (passphrase-keyed position permutation) and L3 (AEAD + Argon2id), both of which use standard primitives with well-understood security properties. L1 is the bonus stealth layer, characterized honestly, with a narrow optional knob (`--cost-subset`) for users who want to squeeze a little more out against off-the-shelf adversaries.
+**Phantasm's v0.3 security argument does not rest on L1.** It rests on L2 (passphrase-keyed position permutation) and L3 (AEAD + Argon2id), both of which use standard primitives with well-understood security properties. L1 is a *bonus stealth layer against casual/off-the-shelf adversaries*, characterized honestly, with a narrow optional knob (`--cost-subset`) that adds 6.2 pp against off-the-shelf detectors. Against phantasm-aware ML, L1 does not defend, and no lever inside the hand-designed cost-function paradigm can make it defend.
+
+## Update 7 — Cover-source diversity (Option B''' complete; CORPUS-ROBUST)
+
+Update 3 established that *training data quantity* (5 passphrases per cover) lifts the phantasm-aware J-UNIWARD detection rate from 28.3% off-the-shelf to 89.9%. The open question at v0.2 ship time was whether that number was a Picsum-corpus overfit artifact — did the detector learn "what phantasm modifies" or "what phantasm modifies *on these 22 specific Picsum seeds*"? Option B''' tests this by holding training recipe constant and scaling the cover pool 2.5× to 500 unique Picsum seeds (same qf85/720 bucket).
+
+### Setup
+
+- Extended the Picsum fetch script to pull 500 unique seeds (`phantasm-0001..0500`) at qf85/720. Manifest committed; images gitignored per repo convention. Commit `59cde9c`.
+- Produced 2500 stego variants per cost function (500 covers × 5 passphrases `ml-multi-pass-{0..4}`) — same passphrase-as-augmentation recipe as Update 3.
+- Seed split: 402 train / 58 val / 40 test covers (~80/12/8) at the seed level. Same split topology as Update 3's 16/3/3 ratio; just scaled up.
+- Same hyperparameters as Update 3 (Adam lr=1e-5, 10 epochs, random 256×256 crop + horizontal flip, init from JIN-SRNet). Wall-clock training time on RTX 5070: **~5 minutes** for J-UW-multi-d500 fine-tune.
+- Evaluated both against the new d500 held-out split (340 stegos = 40 test covers × 5 passphrases × subsets where present) AND against the original eval-198 set for cross-corpus-consistency.
+- Commit `c8202c5`. Fishbowl artifacts: `~/phantasm-eval/corpus-diversity-500/runs/juw_d500_v1/`.
+
+### Result — detection rate rises, not falls
+
+| Fine-tune condition | Eval set | J-UW detection rate | Δ vs Update 3 |
+|---|---|---:|---:|
+| Update 3 baseline (198 covers, multi-pass) | eval-198 | 89.9% | — |
+| **Update 7 — 500-cover multi-pass** | **d500 held-out (340 stegos)** | **96.8%** | **+6.9 pp** |
+| Update 7 — 500-cover multi-pass | eval-198 (original) | 97.5% | +7.6 pp |
+
+The d500-trained detector is **stronger** on both the new held-out split and on the original eval-198 set. Cover-source diversity did not weaken the detector by diluting training concentration; it strengthened it by tightening the decision boundary.
+
+### Interpretation
+
+1. **The Update 3 89.9% number was NOT a cover-pool artifact.** If it had been, expanding the cover pool should have degraded the detector — but it lifted it instead. This closes the Option B''' question cleanly.
+2. **The phantasm-modification signature generalizes across Picsum seeds.** The CNN is learning "what phantasm-modified DCT blocks look like statistically," not "what phantasm modifies on these 22 specific images." The signature has the structural quality of a proper fingerprint across the Picsum corpus.
+3. **Cross-corpus generalization remains untested.** BOSSbase / ALASKA2 / non-Picsum covers could still produce lower numbers due to distribution shift. The Update 7 result rules out the specific Picsum-seed-overfit failure mode; it does not rule out cover-source mismatch in the general sense.
+4. **Combined with Update 8 (below), the cost-function research direction is closed.** Every axis we can vary inside a hand-designed cost-function paradigm — training set size (Update 3), passphrase variation (Update 3), cover-source diversity (Update 7), per-coefficient gradient biasing (Updates 4 + 8) — has been tested. None defend against a fully-adapted phantasm-aware CNN.
+
+### Files
+
+Fine-tuned checkpoint: `~/phantasm-eval/corpus-diversity-500/runs/juw_d500_v1/juw_d500_best.pt`. Training log: same directory, `train.log`. Cross-eval JSON: `five_way_eval_d500.json` in the same run directory.
+
+## Update 8 — Iterative PGD adversarial costs (Option C-iter complete; FAILED)
+
+Update 4 attempted single-step gradient-based adversarial costs and failed — the linear approximation ∂(stego_logit)/∂(coefficient) computed at the clean cover breaks down after the first few STC-driven coefficient flips, so the cost signal stops steering toward the decision boundary. The literature fix is iterative: re-compute the gradient at the *partial stego* after each embed round and bias costs with the fresh signal. This is the PGD-vs-FGSM distinction from adversarial ML applied to the cost-function setting.
+
+### Setup
+
+- Inherited all infrastructure from Update 4 (PHCOST sidecar format, Rust `Sidecar` distortion, `dump-costs` subcommand, Python cost computer, `--cost-function from-sidecar --cost-sidecar <path>` CLI path). No new Rust code needed.
+- New Python iteration loop (`scratch/advcost-iter/iterative_refine.py`, kept and gitignored) that: (a) embeds an initial stego with J-UNIWARD costs, (b) decodes it, (c) re-computes the detector gradient at the stego point, (d) writes a new sidecar combining J-UNIWARD base with the fresh adversarial signal, (e) re-embeds from the cover with the updated costs, (f) repeats T times.
+- Default config: T=4 iterations, α=2.0 combination weight, warm-start from stego point (not cover), max-abs gradient normalization.
+- Target detector: J-UW-multi from Update 3 (89.9% J-UW detection on eval-198, 0.5% cover FP). Full-corpus eval on eval-198 after each iteration.
+- Fishbowl artifacts: `~/phantasm-eval/advcost/iter-full-T4-a2-stego/`.
+
+### Trajectory — iteration makes things strictly worse
+
+| T | J-UW-multi detection rate | Δ vs T=0 |
+|---:|---:|---:|
+| 0 (J-UNIWARD baseline) | 91.9% | — |
+| 1 | 96.5% | +4.6 pp |
+| 2 | 98.5% | +6.6 pp |
+| 3 | 99.5% | +7.6 pp |
+| **4** | **100.0%** | **+8.1 pp** |
+
+(T=0 here differs slightly from Update 3's 89.9% because this run used the iterative script's harness which regenerates stegos per iteration; noise is within ±2 pp.)
+
+**Iteration does not defend — it actively degrades.** Each PGD round adds new anomalies to the stego distribution that the detector latches onto.
+
+### Hyperparameter sweep — every config worse than baseline
+
+| Config | Warm start | Norm | α | T | J-UW-multi det |
+|---|---|---|---:|---:|---:|
+| J-UW baseline | — | — | — | 0 | 91.9% |
+| primary (above) | stego | max-abs | +2.0 | 4 | **100.0%** |
+| longer | stego | max-abs | +2.0 | 8 | 100.0% |
+| weaker α | stego | max-abs | +0.5 | 4 | 99.0% |
+| stronger α | stego | max-abs | +5.0 | 4 | 100.0% |
+| sign-flip control | stego | max-abs | −2.0 | 4 | 100.0% |
+| cover warm-start | cover | max-abs | +2.0 | 4 | 98.5% |
+| percentile-norm | stego | percentile-95 | +2.0 | 4 | 99.5% |
+
+**Every swept config was worse than the J-UNIWARD baseline.** The sign-flip control is the critical one: α=−2.0 means the cost signal pushes *toward* the detector's decision boundary instead of away from it. If iteration had any real signal, flipping the sign should produce a dramatically different result from α=+2.0. Instead it produces an essentially identical 100% detection rate. **This rules out a direction bug** — the detector is genuinely insensitive to the transport mechanism per-coefficient cost adjustment relies on.
+
+### Diagnosis
+
+The single-step failure mode from Update 4 escalates cleanly to iterative formulations:
+
+1. **The detector is non-linear at every point along the embed trajectory.** The gradient at the partial stego is only locally informative; once STC + quantization apply the next round's modifications, the gradient's target region has moved, same as in the single-step case. Iteration doesn't fix this because each round's modifications are still chosen by the transport mechanism (cost ranking → STC position selection → ±1 sign) that's fundamentally linear in the cost signal.
+2. **STC's cost-to-modification transfer function is discretized and non-smooth.** A per-coefficient cost doesn't directly translate to a per-coefficient modification: STC picks a small minimum-cost subset of positions that satisfies the syndrome, then signs them to match. Gradient information can only bias *which subset gets picked*, not *what's applied to those positions*. After JPEG quantization re-coarsens the result, most of the gradient's original fine-grained directional information is lost.
+3. **The detector latches onto "anomalous modification distribution" as a feature.** Every iterative step that bent modifications away from J-UNIWARD's natural high-frequency distribution made them easier to detect, not harder. This is why α=±2 produce identical results: the magnitude of the off-J-UW distortion is the signal, regardless of direction.
+
+**Implication — per-coefficient cost-function adjustment is exhausted as an L1 defense direction** against trained non-linear detectors. What remains structurally different:
+
+- **End-to-end differentiable embedding.** Replace STC with a differentiable embedding layer so the full embed-and-detect chain can be optimized as a single graph. Eliminates the "cost signal → STC transfer function → modification" bottleneck entirely. Most ambitious; v0.4+ candidate.
+- **ADV-EMB / ADV-IMB** (STC-aware iterative attacks that jointly optimize coefficient *choice* and sign with STC structure as a constraint). Academic literature with reference implementations; the natural follow-up if end-to-end differentiable embedding is too ambitious.
+- **Multi-cover payload spreading.** Accept that any single cover can be detected; spread the syndrome across N covers so no single detection is diagnostic. Fundamentally different L1 framing.
+
+### Files
+
+Script (gitignored): `scratch/advcost-iter/iterative_refine.py`. Fishbowl per-T stegos and eval JSONs: `~/phantasm-eval/advcost/iter-full-T4-a2-stego/T{0..4}/`. Sweep results: `~/phantasm-eval/advcost/iter-sweep/*.json`.
 
 ## v0.2 research direction proposal
 
@@ -478,11 +576,9 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 
 **Result:** Multi-pass fine-tunes (5 passphrases per cover, 5× more training data) push UERD detection to 85.4% and J-UNIWARD detection to 89.9% — J-UNIWARD becomes slightly MORE detectable than UERD at the worst-case attacker-adaptation level. Both multi-pass models hit ~0% cover false positive on the full 198-image eval. The asymmetry from Update 2 was a small-N artifact. The "use J-UNIWARD" recommendation is now scope-limited to lightly-adapted threat models.
 
-### Option B''' — Cover-source diversity follow-up
+### Option B''' — Cover-source diversity follow-up — **DONE, see § Update 7. Closed negatively.**
 
-**The case:** Update 3 established that "more training data per cover" matters. The complementary axis is "more unique covers" — does cover diversity have the same lift effect, or is the multi-pass result an artifact of seeing the same 22 seeds in 5 different forms? Cheap test: extend Picsum corpus to 500 unique covers via fetch_corpus extension, regenerate the eval, and re-run both fine-tunes.
-
-**Cost:** ~half day. Mostly an embed + train cycle.
+**Result:** 500-cover multi-pass fine-tune pushes J-UNIWARD detection to **96.8% on the d500 held-out split (97.5% on eval-198)** — +6.9 pp / +7.6 pp above Update 3's 89.9%. The 89.9% number was not a cover-pool artifact; cover-source diversity strengthens the detector rather than diluting it.
 
 ### Option C — Adversarial costs (reframed after Update 3)
 
@@ -494,8 +590,9 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 
 **What this enables (best case):** A defensible claim that phantasm's adv-cost mode beats a state-of-the-art detector trained specifically on phantasm output. That is the only research result that would extend phantasm's defended threat model beyond "off-the-shelf and lightly-adapted detectors." The claim is also threat-model-honest: it doesn't pretend to defend against *unbounded* adversary adaptation, only against the specific deployed detector at training time.
 
-### Recommended path (v0.2 SHIPPED)
+### Recommended path (v0.2 SHIPPED; v0.3 additions)
 
+v0.2:
 - **Option A** — docs + threat-model framing in CLI help. **DONE** (commit `c450aa6`).
 - **Option B** — UERD fine-tune experiment. **DONE**, Update 1.
 - **Option B'** — symmetric J-UNIWARD fine-tune, refutes Update 1's asymmetry claim. **DONE**, Update 2.
@@ -504,13 +601,18 @@ Based on these results, three credible v0.2 directions, in rough priority order:
 - **Option D (passphrase-randomized cost noise)** — **DONE, FAILED**, Update 5.
 - **Option D' (passphrase-derived position subset)** — **DONE, MIXED**, Update 6. Ships as hidden `--cost-subset` flag; provides a 6.2 pp defense against off-the-shelf detectors at the cost of per-stego density anomaly against phantasm-trained ones and a 23% embed-failure rate at `subset=0.6`.
 
-### Deferred to v0.3 (further L1 research)
+v0.3 (added during the v0.2 → v0.3 burst):
+- **Option B''' (cover-source diversity)** — **DONE, CLOSED NEGATIVELY**, Update 7. 500-cover multi-pass fine-tune lifts detection to 96.8% / 97.5% — the 89.9% number was not a cover-pool artifact.
+- **Option C-iter (iterative PGD adversarial costs)** — **DONE, FAILED**, Update 8. Every swept config produced 100% detection; per-coefficient cost adjustment is exhausted as an L1 defense direction.
 
-- **Option C-iter** — iterative gradient refinement (PGD-style). Re-compute the detector gradient at the *partial* stego, re-embed, repeat for a few rounds. Infrastructure from Update 4 is the foundation; only the iteration loop needs to be added.
-- **Option B'''** — cover-source diversity hardening (500+ unique covers via Picsum or BOSSbase). Tests whether Update 3's numbers were a cover-pool artifact.
-- **Option D''** — compose `--cost-noise` + `--cost-subset` and search for a combination that retains the Update 6 off-the-shelf defense without the density-anomaly penalty.
-- **Composable L1 hardening framework** — the Noisy / PassphraseSubset / Sidecar wrappers are infrastructure for a "cost function pipeline" in v0.3.
-- **End-to-end differentiable embedding** — replace STC with a differentiable embedding layer so the whole chain can be optimized together. Most ambitious; v0.4 candidate.
+### Deferred to v0.4+ (further L1 research — hand-designed cost direction is closed)
+
+With Updates 7 + 8 closing both remaining cost-function-paradigm levers, the remaining L1 defense directions are all structurally different from "per-coefficient cost adjustment":
+
+- **End-to-end differentiable embedding** — replace STC with a differentiable embedding layer so the whole chain can be optimized together. Eliminates the "cost signal → STC transfer function → modification" bottleneck that Update 8 diagnosed as load-bearing. Most ambitious; v0.4+ candidate.
+- **ADV-EMB / ADV-IMB** — STC-aware iterative attacks that jointly optimize coefficient *choice* and sign with STC structure as a constraint. Academic literature with reference implementations.
+- **Multi-cover payload spreading** — spread the syndrome across N covers so no single-cover detection is diagnostic. Fundamentally different L1 framing; also synergizes with the v0.3 channel-adapter BER findings (more covers = more redundancy = lower per-cover FEC burden).
+- **Composable L1 hardening framework** — the Noisy / PassphraseSubset / Sidecar wrappers are still useful infrastructure for any v0.4+ direction.
 
 ### Out of scope for the L1 research track entirely
 
@@ -528,5 +630,5 @@ Total eval time: ~5 minutes embedding + ~3 minutes inference + scripts. The 5070
 
 ---
 
-**Author:** Phantasm dev session, 2026-04-13.
+**Author:** Phantasm dev sessions, 2026-04-13 (Updates 1-6) and 2026-04-14 through 2026-04-19 (Updates 7-8).
 **Methodology review:** Recommended before publishing externally.
