@@ -43,12 +43,9 @@ fn sha256_hex(data: &[u8]) -> String {
     format!("{:x}", h.finalize())
 }
 
-fn main() {
-    let corpus_root = PathBuf::from(
-        std::env::var("CORPUS_DIR")
-            .unwrap_or_else(|_| "/Users/dylan/Developer/phantasm/research-corpus".to_string()),
-    );
-
+/// Build the default 198-image slot matrix:
+/// 3 QF × 3 dim × 22 per bucket, seeds `phantasm-0001..phantasm-0198`.
+fn build_slots_default() -> Vec<Slot> {
     let qfs: &[u8] = &[75, 85, 90];
     let dims: &[(&str, u32, u32)] = &[("512", 512, 512), ("1024", 1024, 1024), ("720", 720, 680)];
     let per_bucket: usize = 22;
@@ -70,6 +67,59 @@ fn main() {
             }
         }
     }
+    slots
+}
+
+/// Build the diversity-500 slot list: seeds `phantasm-0001..phantasm-0500`
+/// at a single qf/dim bucket (qf85, 720×680) for clean statistics.
+///
+/// Rationale for the single-bucket choice: Update 3's worst-case 89.9%
+/// J-UNIWARD detection number was measured across the full qf×dim matrix,
+/// but the open question is whether it is a COVER-POOL artifact (too few
+/// unique images → detector overfits the content). Holding qf/dim fixed
+/// while expanding cover diversity isolates that variable. The qf85/720
+/// combination matches the modal ML-eval crop size and an audit-favored
+/// quality tier.
+fn build_slots_diversity_500() -> Vec<Slot> {
+    let qf: u8 = 85;
+    let dim_label: &'static str = "720";
+    let width: u32 = 720;
+    let height: u32 = 680;
+
+    (1u32..=500u32)
+        .map(|seed_num| Slot {
+            seed_num,
+            qf,
+            dim_label,
+            width,
+            height,
+            file_num: seed_num as usize,
+        })
+        .collect()
+}
+
+fn main() {
+    let mode = std::env::var("MODE").unwrap_or_else(|_| "default".to_string());
+
+    let default_root = match mode.as_str() {
+        "diversity500" => "/Users/dylan/Developer/phantasm/research-corpus-500",
+        _ => "/Users/dylan/Developer/phantasm/research-corpus",
+    };
+
+    let corpus_root =
+        PathBuf::from(std::env::var("CORPUS_DIR").unwrap_or_else(|_| default_root.to_string()));
+
+    let (slots, target_min, target_max) = match mode.as_str() {
+        "diversity500" => (build_slots_diversity_500(), 17usize, 1000usize),
+        _ => (build_slots_default(), 17usize, 27usize),
+    };
+
+    println!(
+        "Mode: {} | Corpus root: {} | Target slots: {}",
+        mode,
+        corpus_root.display(),
+        slots.len()
+    );
 
     let client = Client::builder()
         .timeout(Duration::from_secs(15))
@@ -192,7 +242,7 @@ fn main() {
     let total_count = entries.len();
     let manifest = Manifest {
         source: "picsum.photos".to_string(),
-        fetched_at: "2026-04-12T22:45:00Z".to_string(),
+        fetched_at: "2026-04-18T00:00:00Z".to_string(),
         total_count,
         by_qf,
         by_dimension: by_dim,
@@ -222,40 +272,49 @@ fn main() {
     println!("  Valid: {valid}, Invalid: {invalid}");
 
     // Spot-check 5 SHA-256s
-    println!("\nSpot-checking 5 SHA-256s...");
-    let spots = [
-        0,
-        total_count / 5,
-        total_count * 2 / 5,
-        total_count * 3 / 5,
-        total_count * 4 / 5,
-    ];
-    for &i in &spots {
-        if i < manifest.images.len() {
-            let e = &manifest.images[i];
-            let p = corpus_root.join(&e.path);
-            let data = fs::read(&p).expect("read failed");
-            let actual = sha256_hex(&data);
-            let ok = if actual == e.sha256 { "OK" } else { "MISMATCH" };
-            println!("  [{ok}] {} {}", e.path, &actual[..16]);
+    if total_count >= 5 {
+        println!("\nSpot-checking 5 SHA-256s...");
+        let spots = [
+            0,
+            total_count / 5,
+            total_count * 2 / 5,
+            total_count * 3 / 5,
+            total_count * 4 / 5,
+        ];
+        for &i in &spots {
+            if i < manifest.images.len() {
+                let e = &manifest.images[i];
+                let p = corpus_root.join(&e.path);
+                let data = fs::read(&p).expect("read failed");
+                let actual = sha256_hex(&data);
+                let ok = if actual == e.sha256 { "OK" } else { "MISMATCH" };
+                println!("  [{ok}] {} {}", e.path, &actual[..16]);
+            }
         }
     }
 
     // Distribution check
-    println!("\nDistribution check (target: 22 per bucket):");
-    for &qf in qfs {
-        for &(label, w, _h) in dims {
+    println!("\nDistribution check:");
+    let qfs_present: std::collections::BTreeSet<u8> =
+        manifest.images.iter().map(|e| e.quality_factor).collect();
+    let dims_present: std::collections::BTreeSet<u32> =
+        manifest.images.iter().map(|e| e.dimensions[0]).collect();
+    for qf in &qfs_present {
+        for dim in &dims_present {
             let count = manifest
                 .images
                 .iter()
-                .filter(|e| e.quality_factor == qf && e.dimensions[0] == w)
+                .filter(|e| e.quality_factor == *qf && e.dimensions[0] == *dim)
                 .count();
-            let status = if (17..=27).contains(&count) {
+            if count == 0 {
+                continue;
+            }
+            let status = if (target_min..=target_max).contains(&count) {
                 "OK"
             } else {
                 "WARN"
             };
-            println!("  [{status}] qf{qf}/{label}: {count}");
+            println!("  [{status}] qf{qf}/{dim}: {count}");
         }
     }
 
@@ -267,6 +326,6 @@ fn main() {
     );
 
     if !skipped.is_empty() {
-        println!("\nSkipped seeds: {:?}", skipped);
+        println!("\nSkipped seeds ({}): {:?}", skipped.len(), skipped);
     }
 }
