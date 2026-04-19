@@ -329,7 +329,7 @@ fn main() -> Result<()> {
 
     // Print banner unless quiet
     if !cli.quiet {
-        eprintln!("phantasm 0.1.0 — not for production use");
+        eprintln!("phantasm 0.3.0 — research-grade");
     }
 
     // Dispatch to subcommand
