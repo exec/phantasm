@@ -467,9 +467,9 @@ Update 3 established that *training data quantity* (5 passphrases per cover) lif
 
 - Extended the Picsum fetch script to pull 500 unique seeds (`phantasm-0001..0500`) at qf85/720. Manifest committed; images gitignored per repo convention. Commit `59cde9c`.
 - Produced 2500 stego variants per cost function (500 covers × 5 passphrases `ml-multi-pass-{0..4}`) — same passphrase-as-augmentation recipe as Update 3.
-- Seed split: 402 train / 58 val / 40 test covers (~80/12/8) at the seed level. Same split topology as Update 3's 16/3/3 ratio; just scaled up.
+- Seed split: 364 train / 68 val / 68 test covers (~73/14/14) at the seed level. Same 73/14/14 ratio as Update 3's 16/3/3; just scaled up.
 - Same hyperparameters as Update 3 (Adam lr=1e-5, 10 epochs, random 256×256 crop + horizontal flip, init from JIN-SRNet). Wall-clock training time on RTX 5070: **~5 minutes** for J-UW-multi-d500 fine-tune.
-- Evaluated both against the new d500 held-out split (340 stegos = 40 test covers × 5 passphrases × subsets where present) AND against the original eval-198 set for cross-corpus-consistency.
+- Evaluated against the d500 held-out split (340 stegos = 68 test covers × 5 passphrases) AND against the original eval-198 set for cross-corpus-consistency.
 - Commit `c8202c5`. Fishbowl artifacts: `~/phantasm-eval/corpus-diversity-500/runs/juw_d500_v1/`.
 
 ### Result — detection rate rises, not falls
