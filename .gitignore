@@ -43,3 +43,6 @@ venv/
 
 # Stegoveritas / external tool scratch output
 /results/
+
+# Out-of-tree research scratch (e.g., adv-cost-iter PGD scripts)
+scratch/
