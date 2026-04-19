@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 use image::ImageFormat;
 use indicatif::{ProgressBar, ProgressStyle};
 
+use phantasm_bench::ber_sweep::{run_ber_sweep, BerSweepArgs};
 use phantasm_bench::eval_corpus::{
     run_density_sweep, run_eval_corpus, EvalCorpusArgs, PayloadSource,
 };
@@ -67,6 +68,30 @@ enum Commands {
         markdown: Option<PathBuf>,
         #[arg(long, default_value = "1")]
         threads: usize,
+    },
+    /// Measure end-to-end BER through a simulated Twitter recompression.
+    ///
+    /// Embeds a fixed random payload into each cover twice (adapter on vs off),
+    /// re-encodes the stego at QF=85 via the `image` crate, then extracts and
+    /// compares against the original payload. Reports extract success rate and
+    /// BER distribution for both arms.
+    BerSweep {
+        #[arg(long)]
+        corpus: PathBuf,
+        #[arg(long, default_value = "40")]
+        limit: usize,
+        #[arg(long, default_value = "3000")]
+        payload_size: usize,
+        #[arg(long, default_value = "phantasm-ber-sweep-v1")]
+        passphrase_prefix: String,
+        #[arg(long, default_value = "85")]
+        recompress_qf: u8,
+        /// Markdown output (defaults to stdout if omitted).
+        #[arg(long)]
+        output: Option<PathBuf>,
+        /// Optional JSON dump with per-trial outcomes.
+        #[arg(long)]
+        json_output: Option<PathBuf>,
     },
     /// Generate security-capacity curves via the research_raw embedding path.
     ResearchCurve {
@@ -399,6 +424,32 @@ fn main() -> Result<()> {
             } else {
                 run_eval_corpus(&args)?;
             }
+        }
+        Commands::BerSweep {
+            corpus,
+            limit,
+            payload_size,
+            passphrase_prefix,
+            recompress_qf,
+            output,
+            json_output,
+        } => {
+            let args = BerSweepArgs {
+                corpus,
+                limit,
+                payload_size,
+                passphrase_prefix,
+                recompress_qf,
+                output,
+                json_output,
+            };
+            let result = run_ber_sweep(&args)?;
+            eprintln!(
+                "ber-sweep: {} images; adapter-on exact-match={:.1}%, adapter-off exact-match={:.1}%",
+                result.images_used,
+                result.adapter_on.exact_match_rate * 100.0,
+                result.adapter_off.exact_match_rate * 100.0,
+            );
         }
         Commands::ResearchCurve {
             corpus,

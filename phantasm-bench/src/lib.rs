@@ -1,3 +1,4 @@
+pub mod ber_sweep;
 pub mod error;
 pub mod eval_corpus;
 pub mod metrics;
