@@ -445,3 +445,196 @@ fn test_bench_prints_stub_message() {
     let assert = cmd.assert().success();
     assert.stdout(predicate::str::contains("phantasm-bench"));
 }
+
+// ---- QWEN_AUDIT findings 1+2: secure passphrase input ---------------------
+
+#[test]
+fn test_embed_help_documents_passphrase_env_and_fd() {
+    let mut cmd = Command::cargo_bin("phantasm").unwrap();
+    cmd.arg("embed").arg("--help");
+    let assert = cmd.assert().success();
+    assert
+        .stdout(predicate::str::contains("--passphrase-env"))
+        .stdout(predicate::str::contains("--passphrase-fd"));
+}
+
+#[test]
+fn test_extract_help_documents_passphrase_env_and_fd() {
+    let mut cmd = Command::cargo_bin("phantasm").unwrap();
+    cmd.arg("extract").arg("--help");
+    let assert = cmd.assert().success();
+    assert
+        .stdout(predicate::str::contains("--passphrase-env"))
+        .stdout(predicate::str::contains("--passphrase-fd"));
+}
+
+#[test]
+fn test_embed_extract_roundtrip_via_passphrase_env() {
+    let tmp = tempdir().unwrap();
+    let cover = tmp.path().join("cover.jpg");
+    let stego = tmp.path().join("stego.jpg");
+    let payload_in = tmp.path().join("payload.bin");
+    let payload_out = tmp.path().join("recovered.bin");
+
+    make_test_jpeg(&cover, 512, 512);
+    let payload_bytes: Vec<u8> = (0..128u8).collect();
+    fs::write(&payload_in, &payload_bytes).unwrap();
+
+    let var = "PHANTASM_ITEST_PASSPHRASE_ENV_RT";
+    let pass = "env-provided-passphrase";
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .env(var, pass)
+        .arg("embed")
+        .arg("--input")
+        .arg(&cover)
+        .arg("--payload")
+        .arg(&payload_in)
+        .arg("--passphrase-env")
+        .arg(var)
+        .arg("--output")
+        .arg(&stego)
+        .assert()
+        .success();
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .env(var, pass)
+        .arg("extract")
+        .arg("--input")
+        .arg(&stego)
+        .arg("--passphrase-env")
+        .arg(var)
+        .arg("--output")
+        .arg(&payload_out)
+        .assert()
+        .success();
+
+    let recovered = fs::read(&payload_out).unwrap();
+    assert_eq!(recovered, payload_bytes);
+}
+
+#[test]
+fn test_embed_extract_roundtrip_via_passphrase_fd_stdin() {
+    // Canonical usage: `printf '%s' "$PW" | phantasm embed --passphrase-fd 0 ...`
+    let tmp = tempdir().unwrap();
+    let cover = tmp.path().join("cover.jpg");
+    let stego = tmp.path().join("stego.jpg");
+    let payload_in = tmp.path().join("payload.bin");
+    let payload_out = tmp.path().join("recovered.bin");
+
+    make_test_jpeg(&cover, 512, 512);
+    let payload_bytes: Vec<u8> = (0..64u8).collect();
+    fs::write(&payload_in, &payload_bytes).unwrap();
+
+    let pass = "fd-piped-passphrase";
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .write_stdin(format!("{}\n", pass))
+        .arg("embed")
+        .arg("--input")
+        .arg(&cover)
+        .arg("--payload")
+        .arg(&payload_in)
+        .arg("--passphrase-fd")
+        .arg("0")
+        .arg("--output")
+        .arg(&stego)
+        .assert()
+        .success();
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .write_stdin(pass) // no trailing newline
+        .arg("extract")
+        .arg("--input")
+        .arg(&stego)
+        .arg("--passphrase-fd")
+        .arg("0")
+        .arg("--output")
+        .arg(&payload_out)
+        .assert()
+        .success();
+
+    let recovered = fs::read(&payload_out).unwrap();
+    assert_eq!(recovered, payload_bytes);
+}
+
+#[test]
+fn test_embed_rejects_passphrase_and_passphrase_env_together() {
+    let tmp = tempdir().unwrap();
+    let cover = tmp.path().join("cover.jpg");
+    let stego = tmp.path().join("stego.jpg");
+    let payload = tmp.path().join("p.bin");
+    make_test_jpeg(&cover, 128, 128);
+    fs::write(&payload, b"x").unwrap();
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .arg("embed")
+        .arg("--input")
+        .arg(&cover)
+        .arg("--payload")
+        .arg(&payload)
+        .arg("--passphrase")
+        .arg("cli-pass")
+        .arg("--passphrase-env")
+        .arg("SOME_VAR")
+        .arg("--output")
+        .arg(&stego)
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_embed_rejects_passphrase_and_passphrase_fd_together() {
+    let tmp = tempdir().unwrap();
+    let cover = tmp.path().join("cover.jpg");
+    let stego = tmp.path().join("stego.jpg");
+    let payload = tmp.path().join("p.bin");
+    make_test_jpeg(&cover, 128, 128);
+    fs::write(&payload, b"x").unwrap();
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .arg("embed")
+        .arg("--input")
+        .arg(&cover)
+        .arg("--payload")
+        .arg(&payload)
+        .arg("--passphrase")
+        .arg("cli-pass")
+        .arg("--passphrase-fd")
+        .arg("0")
+        .arg("--output")
+        .arg(&stego)
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_embed_passphrase_env_unset_errors() {
+    let tmp = tempdir().unwrap();
+    let cover = tmp.path().join("cover.jpg");
+    let stego = tmp.path().join("stego.jpg");
+    let payload = tmp.path().join("p.bin");
+    make_test_jpeg(&cover, 128, 128);
+    fs::write(&payload, b"x").unwrap();
+
+    Command::cargo_bin("phantasm")
+        .unwrap()
+        .env_remove("PHANTASM_ITEST_UNSET_VAR_ZZZZ")
+        .arg("embed")
+        .arg("--input")
+        .arg(&cover)
+        .arg("--payload")
+        .arg(&payload)
+        .arg("--passphrase-env")
+        .arg("PHANTASM_ITEST_UNSET_VAR_ZZZZ")
+        .arg("--output")
+        .arg(&stego)
+        .assert()
+        .failure();
+}

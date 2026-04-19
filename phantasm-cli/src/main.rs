@@ -5,7 +5,9 @@ use std::path::PathBuf;
 mod commands;
 mod logger;
 
-use commands::{analyze, bench, channels, dump_costs, embed, extract};
+use commands::{
+    analyze, bench, channels, dump_costs, embed, extract, passphrase::PassphraseSource,
+};
 
 #[derive(Parser)]
 #[command(name = "phantasm")]
@@ -35,9 +37,20 @@ enum Commands {
         #[arg(short, long)]
         payload: Option<PathBuf>,
 
-        /// Passphrase for encryption (WARNING: insecure on command line)
-        #[arg(long)]
+        /// Passphrase for encryption (WARNING: insecure on command line; visible in `ps`).
+        /// Prefer `--passphrase-env` or `--passphrase-fd` for production use.
+        #[arg(long, conflicts_with_all = ["passphrase_env", "passphrase_fd"])]
         passphrase: Option<String>,
+
+        /// Name of an environment variable to read the passphrase from.
+        /// Example: `--passphrase-env PHANTASM_PASSPHRASE`.
+        #[arg(long, value_name = "VAR", conflicts_with_all = ["passphrase", "passphrase_fd"])]
+        passphrase_env: Option<String>,
+
+        /// File descriptor to read the passphrase from. A single trailing newline
+        /// (or CRLF) is stripped. Example: `printf '%s' "$PW" | phantasm embed --passphrase-fd 0 ...`.
+        #[arg(long, value_name = "FD", conflicts_with_all = ["passphrase", "passphrase_env"])]
+        passphrase_fd: Option<i32>,
 
         /// Path to stego output
         #[arg(short, long)]
@@ -118,9 +131,19 @@ enum Commands {
         #[arg(short, long)]
         input: PathBuf,
 
-        /// Passphrase for decryption (WARNING: insecure on command line)
-        #[arg(long)]
-        passphrase: String,
+        /// Passphrase for decryption (WARNING: insecure on command line; visible in `ps`).
+        /// Prefer `--passphrase-env` or `--passphrase-fd` for production use.
+        #[arg(long, conflicts_with_all = ["passphrase_env", "passphrase_fd"])]
+        passphrase: Option<String>,
+
+        /// Name of an environment variable to read the passphrase from.
+        #[arg(long, value_name = "VAR", conflicts_with_all = ["passphrase", "passphrase_fd"])]
+        passphrase_env: Option<String>,
+
+        /// File descriptor to read the passphrase from. A single trailing newline
+        /// (or CRLF) is stripped.
+        #[arg(long, value_name = "FD", conflicts_with_all = ["passphrase", "passphrase_env"])]
+        passphrase_fd: Option<i32>,
 
         /// Path to write recovered payload
         #[arg(short, long)]
@@ -315,6 +338,8 @@ fn main() -> Result<()> {
             input,
             payload,
             passphrase,
+            passphrase_env,
+            passphrase_fd,
             output,
             channel,
             stealth,
@@ -328,7 +353,11 @@ fn main() -> Result<()> {
         } => embed::run(embed::EmbedArgs {
             input,
             payload,
-            passphrase,
+            passphrase: PassphraseSource {
+                direct: passphrase.clone(),
+                env_var: passphrase_env.clone(),
+                fd: *passphrase_fd,
+            },
             output,
             channel: *channel,
             stealth: *stealth,
@@ -344,10 +373,22 @@ fn main() -> Result<()> {
         Commands::Extract {
             input,
             passphrase,
+            passphrase_env,
+            passphrase_fd,
             output,
             channel_adapter,
             hash_guard,
-        } => extract::run(input, passphrase, output, *channel_adapter, *hash_guard)?,
+        } => extract::run(
+            input,
+            PassphraseSource {
+                direct: passphrase.clone(),
+                env_var: passphrase_env.clone(),
+                fd: *passphrase_fd,
+            },
+            output,
+            *channel_adapter,
+            *hash_guard,
+        )?,
 
         Commands::Analyze { path, json } => analyze::run(path, *json)?,
 

@@ -11,6 +11,7 @@ use phantasm_cost::{
     MAX_NOISE_AMPLITUDE, MIN_KEEP_FRACTION,
 };
 
+use crate::commands::passphrase::PassphraseSource;
 use crate::{
     ChannelAdapterChoice, ChannelChoice, CostFunctionChoice, HashGuardChoice, StealthChoice,
 };
@@ -18,7 +19,7 @@ use crate::{
 pub struct EmbedArgs<'a> {
     pub input: &'a Path,
     pub payload: &'a Option<PathBuf>,
-    pub passphrase: &'a Option<String>,
+    pub passphrase: PassphraseSource,
     pub output: &'a Path,
     pub channel: ChannelChoice,
     pub stealth: StealthChoice,
@@ -48,12 +49,13 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         layer,
     } = args;
     let has_payload = payload.is_some();
-    let has_passphrase = passphrase.is_some();
+    let has_passphrase = !passphrase.is_empty();
     let has_layers = layer.as_ref().is_some_and(|l| !l.is_empty());
 
     if !has_layers && (!has_payload || !has_passphrase) {
         anyhow::bail!(
-            "Either --payload and --passphrase must be provided, or --layer(s) must be specified"
+            "Either --payload and one of --passphrase/--passphrase-env/--passphrase-fd must be \
+             provided, or --layer(s) must be specified"
         );
     }
 
@@ -65,10 +67,12 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         anyhow::bail!("--passphrase is mutually exclusive with --layer");
     }
 
-    if has_passphrase {
-        eprintln!("WARNING: passphrase on command line is insecure, use stdin in production");
-        warn!(
-            "Passphrase provided on command line — insecure. Use stdin or env var in production."
+    // Direct --passphrase leaks via `ps`; warn on stderr (ephemeral, does not
+    // persist to log files — deliberately NOT via `log::warn!`, QWEN finding 1).
+    if passphrase.direct.is_some() {
+        eprintln!(
+            "WARNING: passphrase on command line is insecure, use --passphrase-env or \
+             --passphrase-fd in production"
         );
     }
 
@@ -94,7 +98,8 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
     }
 
     let payload_path = payload.as_ref().unwrap();
-    let passphrase_str = passphrase.as_ref().unwrap();
+    let passphrase_owned = passphrase.resolve()?;
+    let passphrase_str = passphrase_owned.as_str();
     let payload_bytes = std::fs::read(payload_path)?;
 
     let channel_name = channel.to_string();
@@ -184,7 +189,7 @@ pub fn run(args: EmbedArgs<'_>) -> Result<()> {
         anyhow::bail!("--cost-subset is incompatible with --cost-function from-sidecar");
     }
 
-    let pp_for_wrappers = passphrase_str.clone();
+    let pp_for_wrappers = passphrase_str.to_string();
     // Compose: subset wrapper outermost (marks wet positions), noise wrapper
     // inside (perturbs the surviving costs). Order matters slightly because
     // noise applies to ALL positions in the inner cost map; with subset on top,
