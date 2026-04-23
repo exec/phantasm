@@ -4,7 +4,8 @@ pub mod error;
 pub mod hash_guard;
 pub mod minimal;
 pub mod orchestrator;
-pub(crate) mod pipeline;
+#[doc(hidden)]
+pub mod pipeline;
 pub mod pipeline_spatial;
 pub mod plan;
 #[doc(hidden)]

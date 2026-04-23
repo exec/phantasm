@@ -60,13 +60,23 @@ const LOSSY_ECC_DATA_SHARDS: usize = 100;
 const LOSSY_ECC_PARITY_SHARDS: usize = 30;
 const LOSSY_ECC_SHARD_SIZE: usize = 32;
 
-fn lossy_ecc_params() -> EccParams {
-    EccParams::new(
-        LOSSY_ECC_DATA_SHARDS,
-        LOSSY_ECC_PARITY_SHARDS,
-        LOSSY_ECC_SHARD_SIZE,
-    )
+fn env_usize(var: &str, default: usize) -> usize {
+    std::env::var(var)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
+
+fn lossy_ecc_params() -> EccParams {
+    // Research override: allow the BER-sweep harness (and other tuning tools)
+    // to vary RS parameters without a rebuild. Production callers leave these
+    // unset and get the compile-time defaults.
+    let data = env_usize("PHANTASM_LOSSY_ECC_DATA", LOSSY_ECC_DATA_SHARDS);
+    let parity = env_usize("PHANTASM_LOSSY_ECC_PARITY", LOSSY_ECC_PARITY_SHARDS);
+    let shard = env_usize("PHANTASM_LOSSY_ECC_SHARD", LOSSY_ECC_SHARD_SIZE);
+    EccParams::new(data, parity, shard)
+}
+
 
 pub(crate) fn embed_with_costs_and_hooks(
     cover_path: &Path,
@@ -377,6 +387,17 @@ pub(crate) fn usable_positions(jpeg: &JpegCoefficients) -> Vec<(usize, usize, us
 /// wet when this matters.
 const SALT_QUANT_STEP: f64 = 16.0;
 
+fn salt_quant_step() -> f64 {
+    // Research override: lossy-channel tuning may bump the quantization step
+    // to absorb more recompression drift. Default stays at the compile-time
+    // constant so the lossless path and all tests keep their existing salts.
+    std::env::var("PHANTASM_SALT_QUANT_STEP")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .filter(|v| *v > 0.0)
+        .unwrap_or(SALT_QUANT_STEP)
+}
+
 /// Derive a 32-byte permutation salt from the cover's pHash-stable DCT
 /// coefficients.
 ///
@@ -402,7 +423,7 @@ pub(crate) fn image_salt(jpeg: &JpegCoefficients) -> Vec<u8> {
     for r in 0..8 {
         for c in 0..8 {
             let coeff = dct_32[r * 32 + c];
-            let quantized = (coeff / SALT_QUANT_STEP).round() as i32;
+            let quantized = (coeff / salt_quant_step()).round() as i32;
             hasher.update(quantized.to_le_bytes());
         }
     }
@@ -495,6 +516,210 @@ pub(crate) fn pad_bits_random(bits: &mut Vec<u8>, target_len: usize) {
             }
             bits.push((b >> i) & 1);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics: post-STC byte-stream error measurement
+// ---------------------------------------------------------------------------
+//
+// Research-only helper for BER-sweep tuning. Performs the full embed path
+// (envelope, RS encode, framing, STC embed, write), then on the returned
+// stego path reads coefficients, runs STC decode, unframes only the
+// outermost length prefix, and returns the byte stream that WOULD be fed
+// to RS decode. Callers compare this to the pre-STC bytes captured from
+// the embed side to get the ground-truth byte-error rate that RS has to
+// correct. Bypasses envelope parsing and MAC check.
+//
+// Not intended for production use; kept #[doc(hidden)] to discourage it.
+
+#[doc(hidden)]
+pub mod diagnostics {
+    use super::*;
+    use phantasm_channel::ChannelAdapter;
+
+    /// Expose image_salt for drift diagnostics.
+    pub fn salt_of_jpeg(jpeg: &JpegCoefficients) -> Vec<u8> {
+        image_salt(jpeg)
+    }
+
+    /// Expose the raw 8×8 pHash block (64 f64 coefficients) so callers can
+    /// measure drift magnitudes across recompression.
+    pub fn phash_block_of_jpeg(jpeg: &JpegCoefficients) -> Vec<f64> {
+        if jpeg.components.is_empty() {
+            return vec![];
+        }
+        let luma = crate::hash_guard::decode_luma(jpeg);
+        let resized = crate::hash_guard::resize_area(&luma, 32, 32);
+        let dct_32 = crate::hash_guard::dct2d_32x32(&resized);
+        let mut out = Vec::with_capacity(64);
+        for r in 0..8 {
+            for c in 0..8 {
+                out.push(dct_32[r * 32 + c]);
+            }
+        }
+        out
+    }
+
+    pub struct DiagEmbed {
+        /// The bytes fed into STC (envelope-after-RS, length-prefix-framed).
+        /// The post-STC recovered bytes should equal this if the channel is
+        /// noiseless.
+        pub framed_pre_stc: Vec<u8>,
+        /// The RS-encoded envelope (what RS decode would output on success
+        /// before envelope parsing).
+        pub ecc_encoded_envelope: Vec<u8>,
+    }
+
+    /// Embed and return the pre-STC framed bytes so a caller can measure
+    /// post-STC byte error rate.
+    #[allow(clippy::too_many_arguments)]
+    pub fn embed_capture_pre_stc(
+        cover_path: &Path,
+        payload: &[u8],
+        passphrase: &str,
+        costs: &CostMap,
+        output_path: &Path,
+        channel_adapter: Option<&dyn ChannelAdapter>,
+    ) -> Result<DiagEmbed, CoreError> {
+        let mut jpeg = jpeg::read(cover_path)?;
+        let mut working_costs: CostMap = costs.clone();
+
+        if let Some(adapter) = channel_adapter {
+            adapter
+                .stabilize(&mut jpeg, 0, &mut working_costs)
+                .map_err(|e| CoreError::InvalidData(format!("channel adapter error: {e}")))?;
+        }
+
+        let use_ecc = channel_adapter.is_some();
+        let salt = image_salt(&jpeg);
+        let metadata = PayloadMetadata {
+            filename: None,
+            payload_len: payload.len() as u64,
+            content_type: ContentType::Raw,
+            version: 1,
+        };
+        let kdf = KdfParams::default();
+        let envelope = seal(passphrase, metadata, payload, &kdf)?;
+        let envelope_bytes = envelope_to_bytes(&envelope);
+
+        let pre_stc_bytes = if use_ecc {
+            let encoder = EccEncoder::new(lossy_ecc_params())
+                .map_err(|e| CoreError::InvalidData(format!("ecc init: {e}")))?;
+            encoder
+                .encode(&envelope_bytes)
+                .map_err(|e| CoreError::InvalidData(format!("ecc encode: {e}")))?
+        } else {
+            envelope_bytes.clone()
+        };
+
+        let framed = frame_bytes(&pre_stc_bytes);
+        let mut payload_bits = bytes_to_bits_lsb(&framed);
+
+        let locations_key = derive_locations_key(passphrase, &salt, &kdf);
+        let mut indices: Vec<usize> = (0..working_costs.positions.len()).collect();
+        permute_indices(&mut indices, &locations_key);
+        let rate_denom = 4usize;
+        let stc_message_len = indices.len() / rate_denom;
+        let trimmed_count = stc_message_len * rate_denom;
+        indices.truncate(trimmed_count);
+
+        if payload_bits.len() > stc_message_len {
+            return Err(CoreError::PayloadTooLarge {
+                size: payload_bits.len(),
+                capacity: stc_message_len,
+            });
+        }
+        pad_bits_random(&mut payload_bits, stc_message_len);
+
+        let y = &jpeg.components[0];
+        let cover_bits: Vec<u8> = indices
+            .iter()
+            .map(|&idx| {
+                let (br, bc, dp) = working_costs.positions[idx];
+                (y.get(br, bc, dp) & 1) as u8
+            })
+            .collect();
+        let stc_costs: Vec<f64> = indices
+            .iter()
+            .map(|&idx| {
+                let (br, bc, dp) = working_costs.positions[idx];
+                let v = jpeg.components[0].get(br, bc, dp);
+                if v == i16::MAX || v == i16::MIN {
+                    return f64::INFINITY;
+                }
+                working_costs.costs_plus[idx].min(working_costs.costs_minus[idx])
+            })
+            .collect();
+        let stc = StcEncoder::new(StcConfig {
+            constraint_height: 7,
+        });
+        let stego_bits = stc.embed(&cover_bits, &stc_costs, &payload_bits)?;
+        for (i, &idx) in indices.iter().enumerate() {
+            let (br, bc, dp) = working_costs.positions[idx];
+            let old = jpeg.components[0].get(br, bc, dp);
+            let new_lsb = stego_bits[i];
+            if (old & 1) as u8 != new_lsb {
+                jpeg.components[0].set(br, bc, dp, old ^ 1);
+            }
+        }
+        jpeg::write_with_source(&jpeg, cover_path, output_path)?;
+
+        Ok(DiagEmbed {
+            framed_pre_stc: framed,
+            ecc_encoded_envelope: pre_stc_bytes,
+        })
+    }
+
+    pub struct DiagExtractRaw {
+        /// Bytes output by STC decode, unframed by the outer length prefix.
+        /// Equals the pre-STC `ecc_encoded_envelope` if the channel is
+        /// noiseless (modulo any length-prefix corruption).
+        pub post_stc_bytes: Option<Vec<u8>>,
+        /// Raw bytes after STC decode (still contains framing length prefix).
+        pub raw_stc_bytes: Vec<u8>,
+        /// Declared frame length (first 4 LE bytes after STC decode).
+        pub framed_len: u32,
+    }
+
+    /// STC-decode only; do not run RS decode, do not parse envelope.
+    pub fn extract_raw_stc(stego_path: &Path, passphrase: &str) -> Result<DiagExtractRaw, CoreError> {
+        let jpeg = jpeg::read(stego_path)?;
+        let salt = image_salt(&jpeg);
+        let kdf = KdfParams::default();
+        let locations_key = derive_locations_key(passphrase, &salt, &kdf);
+
+        let mut positions = usable_positions(&jpeg);
+        permute_positions(&mut positions, &locations_key);
+        let rate_denom = 4usize;
+        let stc_message_len = positions.len() / rate_denom;
+        let trimmed_count = stc_message_len * rate_denom;
+        positions.truncate(trimmed_count);
+
+        let y = &jpeg.components[0];
+        let stego_bits: Vec<u8> = positions
+            .iter()
+            .map(|&(br, bc, dp)| (y.get(br, bc, dp) & 1) as u8)
+            .collect();
+        let decoder = StcDecoder::new(StcConfig {
+            constraint_height: 7,
+        });
+        let message_bits = decoder.extract(&stego_bits, stc_message_len);
+        let framed_bytes = bits_to_bytes_lsb(&message_bits);
+
+        let framed_len = if framed_bytes.len() >= 4 {
+            u32::from_le_bytes(framed_bytes[..4].try_into().unwrap())
+        } else {
+            0
+        };
+
+        let post = unframe_bytes(&framed_bytes).ok();
+
+        Ok(DiagExtractRaw {
+            post_stc_bytes: post,
+            raw_stc_bytes: framed_bytes,
+            framed_len,
+        })
     }
 }
 

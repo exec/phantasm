@@ -8,6 +8,26 @@ license = "MIT OR Apache-2.0"
 name = "phantasm-bench"
 path = "src/main.rs"
 
+[[bin]]
+name = "post-stc-probe"
+path = "src/bin/post_stc_probe.rs"
+
+[[bin]]
+name = "salt-drift-probe"
+path = "src/bin/salt_drift_probe.rs"
+
+[[bin]]
+name = "salt-magnitude-probe"
+path = "src/bin/salt_magnitude_probe.rs"
+
+[[bin]]
+name = "coeff-parity-probe"
+path = "src/bin/coeff_parity_probe.rs"
+
+[[bin]]
+name = "stego-parity-probe"
+path = "src/bin/stego_parity_probe.rs"
+
 [dependencies]
 image = "0.25"
 clap = { version = "4", features = ["derive"] }
