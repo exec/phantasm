@@ -84,8 +84,8 @@ impl DistortionFunction for Sidecar {
                         .as_ref()
                         .map(|m| m[block_offset + dp] as f64)
                         .unwrap_or(cp);
-                    let cp = if cp.is_finite() && cp > 0.0 { cp } else { 1.0 };
-                    let cm = if cm.is_finite() && cm > 0.0 { cm } else { 1.0 };
+                    let cp = sanitize_sidecar_cost(cp);
+                    let cm = sanitize_sidecar_cost(cm);
                     positions.push((br, bc, dp));
                     costs_plus.push(cp);
                     costs_minus.push(cm);
@@ -110,6 +110,28 @@ struct SidecarData {
     n_blocks_x: usize,
     costs_plus: Vec<f32>,
     costs_minus: Option<Vec<f32>>,
+}
+
+/// Validate a sidecar-derived cost.
+///
+/// Per `phantasm-cost`'s API contract (see `CostMap` doc): `f64::INFINITY`
+/// is the wet-paper marker — STC routes around such positions. Producers
+/// (Python adversarial cost computers, etc.) write `np.inf` at coefficients
+/// that must NEVER be modified; preserving that intent through to the STC
+/// encoder is load-bearing.
+///
+/// NaN and negative values are invalid input; map them to `1.0` so a malformed
+/// sidecar can't propagate uninterpretable costs into Viterbi. Note: prior to
+/// v0.4 this routine also sanitized `INFINITY` → `1.0`, which silently broke
+/// wet-paper semantics for sidecar-driven attacks. Fixed; see commit history
+/// for the cost-concentration defense story.
+#[inline]
+fn sanitize_sidecar_cost(c: f64) -> f64 {
+    if c.is_nan() || c < 0.0 {
+        1.0
+    } else {
+        c
+    }
 }
 
 fn parse_floats(slice: &[u8], n: usize) -> Vec<f32> {
@@ -251,6 +273,63 @@ mod tests {
         }
         for c in cm {
             assert_eq!(*c, 0.7);
+        }
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    #[test]
+    fn preserves_infinity_as_wet_paper() {
+        // Per CostMap API contract, f64::INFINITY at a position means "wet,
+        // STC must not modify here". Sidecar producers (Python adversarial
+        // cost computers) write np.inf at high-saliency positions for the
+        // canonical ADV-EMB attack and at low-saliency positions for the
+        // cost-concentration defense. Both depend on the consumer
+        // preserving infinity end-to-end into the CostMap.
+        assert_eq!(sanitize_sidecar_cost(f64::INFINITY), f64::INFINITY);
+        assert_eq!(sanitize_sidecar_cost(2.5), 2.5);
+        assert_eq!(sanitize_sidecar_cost(0.0), 0.0);
+        assert_eq!(sanitize_sidecar_cost(1e-9), 1e-9);
+    }
+
+    #[test]
+    fn rejects_nan_and_negative() {
+        // NaN and negatives are malformed input; map to a benign default
+        // rather than propagating into Viterbi.
+        assert_eq!(sanitize_sidecar_cost(f64::NAN), 1.0);
+        assert_eq!(sanitize_sidecar_cost(-1.0), 1.0);
+        assert_eq!(sanitize_sidecar_cost(f64::NEG_INFINITY), 1.0);
+    }
+
+    #[test]
+    fn cost_map_preserves_inf_through_compute() {
+        // End-to-end: a sidecar with INFINITY at AC positions must surface
+        // INFINITY in the CostMap after `Sidecar::compute`. This is the
+        // load-bearing wet-paper guarantee for sidecar-driven attacks.
+        use crate::DistortionFunction;
+        let tmp = std::env::temp_dir().join("phantasm-cost-sidecar-inf.advcost");
+        write_uniform_sidecar(&tmp, 4, 4, f32::INFINITY);
+        // Need a JpegCoefficients to call compute. Build a minimal one with
+        // matching block dimensions; we don't need real DCT data.
+        let coeffs = phantasm_image::jpeg::JpegCoefficients {
+            components: vec![phantasm_image::jpeg::JpegComponent {
+                id: 1,
+                blocks_high: 4,
+                blocks_wide: 4,
+                coefficients: vec![0i16; 4 * 4 * 64],
+                quant_table: [16u16; 64],
+                h_samp_factor: 1,
+                v_samp_factor: 1,
+            }],
+            width: 32,
+            height: 32,
+            quality_estimate: Some(85),
+            markers: vec![],
+        };
+        let sidecar = Sidecar::new(&tmp);
+        let cm = sidecar.compute(&coeffs, 0);
+        assert!(!cm.costs_plus.is_empty());
+        for c in &cm.costs_plus {
+            assert!(c.is_infinite(), "expected INFINITY, got {}", c);
         }
         std::fs::remove_file(&tmp).ok();
     }
