@@ -111,7 +111,10 @@ fn main() -> Result<()> {
         println!();
         println!("SUMMARY (raw cover→recompress parity flip, no embed)");
         println!("  N={}", n);
-        println!("  mean={:.4} median={:.4} p90={:.4} max={:.4}", mean, median, p90, max);
+        println!(
+            "  mean={:.4} median={:.4} p90={:.4} max={:.4}",
+            mean, median, p90, max
+        );
     }
 
     Ok(())

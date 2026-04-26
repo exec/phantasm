@@ -167,9 +167,19 @@ fn main() -> Result<()> {
 
     let n = images.len();
     println!();
-    println!("SUMMARY across {} covers (adapter={})", n, if args.no_adapter { "off" } else { "twitter" });
-    println!("  max abs drift (over all covers/coeffs): {:.2}", max_abs_drift);
-    println!("  mean abs drift (avg over covers): {:.2}", drifts_sum / drifts_n as f64);
+    println!(
+        "SUMMARY across {} covers (adapter={})",
+        n,
+        if args.no_adapter { "off" } else { "twitter" }
+    );
+    println!(
+        "  max abs drift (over all covers/coeffs): {:.2}",
+        max_abs_drift
+    );
+    println!(
+        "  mean abs drift (avg over covers): {:.2}",
+        drifts_sum / drifts_n as f64
+    );
     for (i, step) in steps.iter().enumerate() {
         println!(
             "  step={:>4}: stable {}/{} ({:.1}%)",

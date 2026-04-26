@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-04-25
+
+Plumbing release for the lossy-channel rewrite arc and a wet-paper sidecar correctness fix. **No breaking changes** to v0.3.0's envelope format (still v2), the CLI surface, or default behavior on existing flags. `phantasm 0.4.0 — research-grade` self-identifies. Default-config embed/extract output is byte-identical to v0.3.0; the new surface is opt-in env knobs and bench probes.
+
+### Added
+
+- **Lossy-channel diagnostics + bench probes** (commit `7116571`). Three runtime env overrides (`PHANTASM_LOSSY_ECC_{DATA,PARITY,SHARD}`, `PHANTASM_SALT_QUANT_STEP`) let v0.4 work iterate on the lossy channel without rebuilds. New `phantasm-core::pipeline::diagnostics` (`#[doc(hidden)] pub`) exposes `salt_of_jpeg`, `phash_block_of_jpeg`, `embed_capture_pre_stc`, `extract_raw_stc` — the hooks needed to measure post-STC byte-error rate against ground truth. Five new `phantasm-bench` binaries: `post-stc-probe`, `salt-drift-probe`, `salt-magnitude-probe`, `coeff-parity-probe`, `stego-parity-probe`. Pre-shipping measurement on the 40-cover `research-corpus-500/qf85/720` subset surfaced a v0.3 correctness bug: `SALT_QUANT_STEP=16` silently drifts on **42.5%** of covers through `image`-crate QF=85 recompression (max observed DCT drift 6.39, well above the ~0.41 the docs assume); step 128 recovers 92.5% stability, step 256 gets 100%. The constant is NOT changed in this release because that's a stego-breaking change (salt is image-derived, not stored in envelope) — it lands behind an envelope version bump in a future release. The env knob lets v0.4 work experiment cleanly.
+
+### Fixed
+
+- **`phantasm-cost` sidecar reader silently dropped `f64::INFINITY`** (commit `9312ecc`). The v0.3 sanitizer (`is_finite() && > 0.0 → 1.0`) coerced INFINITY — the canonical wet-paper marker per `CostMap` API contract (`phantasm-cost/src/lib.rs:37`) — into cost = 1.0, vastly cheaper than typical J-UW costs (~864). Python attack scripts writing `np.inf` at coefficient positions had wet-paper semantics inverted into accidental cost-attraction. Replaced with explicit `sanitize_sidecar_cost()` that preserves INFINITY and finite-including-zero costs while mapping NaN and negative values to 1.0. Three new unit tests (`preserves_infinity_as_wet_paper`, `rejects_nan_and_negative`, `cost_map_preserves_inf_through_compute`). 280 tests passing (was 277).
+
+### Research findings
+
+- **L1-defense research arc (private branches `experiment/{hydra,chameleon,doppelganger,palimpsest}`).** Four cost-map-based defenses tested against the multi-config EffNet-pretrained attacker recipe. Result: HYDRA (cost-concentration / passphrase-keyed wet-paper) AUC 0.77; CHAMELEON (variance-shaped costs) AUC 0.82-0.93; DOPPELGÄNGER (saliency-aware concentration) AUC 0.99-1.00 (catastrophic, made stegos *more* detectable than no defense); PALIMPSEST (side-informed steganography per Holub-Fridrich-Denemark 2014) AUC 0.99 in-distribution and 0.99 against an unrelated baseline detector. **Verdict: the cost-map family of defenses is closed.** WHERE-randomization (HYDRA/CHAMELEON/DOPPELGÄNGER) and HOW-with-rounding (PALIMPSEST) both leave the operator-level fingerprint that CNNs detect. The deep lesson: the detectable signature is not WHERE phantasm modifies but the FACT of modification — specifically, the statistical artifact of `decode JPEG → modify integer DCT coefficient → re-encode JPEG`. Modifications shift the coefficient by a full quantization step ±q from where libjpeg would have stored it on a fresh re-quantization, regardless of cost map or rounding direction. Future L1-defense work must change the embedding *operator*, not its position-distribution. Candidate paths (deferred): learned-generator adversarial training (OUROBOROS), patch synthesis instead of coefficient modification (GHOSTWRITER). Specs at `scratch/specs/2026-04-25-*.md`. Branches preserved as research artifacts; not merged to main.
+- **Architectural finding** (load-bearing for future cost-map work): `JpegComponent::coefficients` and `quant_table` are stored in **natural row-major order**, not zigzag despite inline comments claiming otherwise. PHCOST sidecar slots are also natural-order to match what STC consumes. Documented in `phantasm-image/src/side_info.rs` (added on `experiment/palimpsest`, not on main).
+- **Pipeline-level constraint on asymmetric costs** (load-bearing for any side-informed direction): phantasm-core collapses `(cp, cm)` to `min(cp, cm)` and modifies via `coeff XOR 1`, so direction is forced by `parity(cover_coeff)`. Asymmetric `(cp, cm)` that side-informed STC literature depends on are NOT direction-selective in our single-layer-binary-STC pipeline. A "true" side-informed embedding would need `phantasm_stc::DoubleLayerEncoder` wired through the orchestrator. Workaround used in PALIMPSEST: parity-conditioned soft 1e6 penalty (achieved 99.92% direction-correct), but the verdict suggests the full-asymmetric formulation is also constrained by the operator-fingerprint trap.
+
+### Deferred (carried from v0.3 + new)
+
+- **Envelope format bump for `SALT_QUANT_STEP`** (carried). The 42.5% drift is a real correctness bug; landing the fix requires bumping FORMAT_VERSION (since salt derivation is part of the embedding contract).
+- **RS parameter tuning + non-AEAD lossy mode + multi-cover spreading** (carried from v0.3 deferred-list).
+- **Learned-operator L1 defense** (new): OUROBOROS spec written and parked. Resume condition: GHOSTWRITER refutes or new theoretical insight on diff-embedding wall.
+- **Patch-synthesis L1 defense** (new): GHOSTWRITER spec written and parked.
+
 ## [0.3.0] — 2026-04-19
 
 L1 hardening research burst (cover-source diversity scale-up, iterative adversarial costs), audit-driven CLI passphrase-handling improvements, channel-adapter BER reality-check with initial Reed-Solomon ECC wiring, and a PNG / S-UNIWARD spatial-domain MVP. **No breaking changes** to v0.2.0's envelope format (still v2) or the CLI surface for existing flags. `phantasm 0.3.0 — research-grade` self-identifies more honestly than v0.2.0's `0.1.0 — not for production use` string.

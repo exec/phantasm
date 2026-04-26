@@ -77,7 +77,6 @@ fn lossy_ecc_params() -> EccParams {
     EccParams::new(data, parity, shard)
 }
 
-
 pub(crate) fn embed_with_costs_and_hooks(
     cover_path: &Path,
     payload: &[u8],
@@ -683,7 +682,10 @@ pub mod diagnostics {
     }
 
     /// STC-decode only; do not run RS decode, do not parse envelope.
-    pub fn extract_raw_stc(stego_path: &Path, passphrase: &str) -> Result<DiagExtractRaw, CoreError> {
+    pub fn extract_raw_stc(
+        stego_path: &Path,
+        passphrase: &str,
+    ) -> Result<DiagExtractRaw, CoreError> {
         let jpeg = jpeg::read(stego_path)?;
         let salt = image_salt(&jpeg);
         let kdf = KdfParams::default();

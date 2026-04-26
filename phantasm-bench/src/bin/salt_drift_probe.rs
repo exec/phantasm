@@ -143,11 +143,7 @@ fn main() -> Result<()> {
 
         println!(
             "{:<12} cover==stego:{} cover==reenc:{} stego==reenc:{} stable:{}",
-            image_key,
-            cover_eq_stego,
-            cover_eq_reenc,
-            stego_eq_reenc,
-            stable_end_to_end
+            image_key, cover_eq_stego, cover_eq_reenc, stego_eq_reenc, stable_end_to_end
         );
     }
 

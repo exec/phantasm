@@ -209,8 +209,7 @@ fn main() -> Result<()> {
     // Summary.
     if !per_image_stats.is_empty() {
         let n = per_image_stats.len();
-        let mean_rate: f64 =
-            per_image_stats.iter().map(|s| s.4).sum::<f64>() / n as f64;
+        let mean_rate: f64 = per_image_stats.iter().map(|s| s.4).sum::<f64>() / n as f64;
         let mut rates: Vec<f64> = per_image_stats.iter().map(|s| s.4).collect();
         rates.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let median = rates[n / 2];
@@ -224,7 +223,10 @@ fn main() -> Result<()> {
         println!("SUMMARY");
         println!("  images: {}", n);
         println!("  pre-stc bytes (typical): {}", pre_stc_len);
-        println!("  byte-error rate: mean={:.4} median={:.4} p90={:.4} max={:.4}", mean_rate, median, p90, max);
+        println!(
+            "  byte-error rate: mean={:.4} median={:.4} p90={:.4} max={:.4}",
+            mean_rate, median, p90, max
+        );
         println!("  max byte-diff: {}", max_byte_diffs);
     }
 
