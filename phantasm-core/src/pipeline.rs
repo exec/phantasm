@@ -357,34 +357,35 @@ pub(crate) fn usable_positions(jpeg: &JpegCoefficients) -> Vec<(usize, usize, us
 /// as 8-bit integers so the rounding noise at the pixel level accumulates
 /// through the resize + DCT). A coarse quantization step absorbs that noise.
 ///
-/// A step of 16 is chosen empirically because:
-/// - A QF=85→QF=85 round-trip on typical photos drifts DCT coefficients by
-///   fractional-to-low-single-digit amounts; step 16 gives an ~8-unit
-///   safety margin on each side of each quantization bin.
-/// - Measured maximum drift across the three shipping cost functions
-///   (Uniform / UERD / J-UNIWARD) on a synthetic 512×512 gradient cover is
-///   ~0.41 DCT units. Step 16 comfortably absorbs this plus the rounding
-///   noise from JPEG recompression.
-/// - Typical AC magnitudes in the pHash 8×8 block span tens to thousands
-///   of units, so 64 coefficients quantized at step 16 still deliver well
-///   over 256 bits of entropy across a diverse cover corpus — more than
-///   enough to key a ChaCha-permutation uniquely.
-/// - The DC coefficient (index 0) is quantized the same way as the AC
-///   coefficients; its magnitude is much larger (~image mean × 32) so the
-///   step-16 bins still discriminate cleanly between different covers.
+/// A step of 256 is chosen empirically. The v0.4 lossy-channel diagnostic
+/// tooling (`phantasm-bench salt-magnitude-probe`, archived) measured per-
+/// cover maximum DCT drift through `image`-crate QF=85 recompression on the
+/// `research-corpus-500` subset:
+/// - Step 16 (the v0.3 setting): drift exceeded the safety margin on **42.5%**
+///   of covers (max observed 6.39 DCT units). Stego extracts on those covers
+///   silently failed with `AuthFailed` after share/recompress.
+/// - Step 128: 92.5% stable.
+/// - Step 256: 100% stable across the test corpus.
+///
+/// The v1 envelope (FORMAT_VERSION = 3) adopts step 256. Because salt is
+/// image-derived and not stored in the envelope, this is a stego-breaking
+/// change vs v3 envelopes produced under a different step — hence gated
+/// behind the envelope version bump.
+///
+/// Entropy budget at step 256: typical AC magnitudes in the pHash 8×8 block
+/// span tens to thousands of units, so 64 quantized coefficients still
+/// deliver well over 256 bits of entropy across a diverse cover corpus.
 ///
 /// Adversarial cover limitation: if a cover has a low-frequency DCT
 /// coefficient whose pre-quantization value happens to lie within ~0.5
 /// units of a `step × n` boundary AND the chosen cost function's embed
 /// perturbation pushes that coefficient across the boundary, the salt will
-/// drift and extract will fail with `AuthFailed`. This is unlikely on
-/// realistic photographic covers because their 32×32 DCT coefficients are
-/// distributed continuously and most have large distance-to-nearest-bin
-/// margins, but it can be triggered on pathological synthetic covers
-/// (e.g. uniform gradients) where a specific coefficient happens to land
-/// on a boundary. Use `--hash-guard phash` to mark those coefficients as
-/// wet when this matters.
-const SALT_QUANT_STEP: f64 = 16.0;
+/// drift and extract will fail with `AuthFailed`. Larger step sizes shrink
+/// the boundary-collision rate proportionally; step 256 makes this
+/// negligible on realistic photographic covers and rare even on
+/// pathological synthetic covers. Use `--hash-guard phash` to mark such
+/// coefficients as wet when it matters.
+const SALT_QUANT_STEP: f64 = 256.0;
 
 fn salt_quant_step() -> f64 {
     // Research override: lossy-channel tuning may bump the quantization step

@@ -11,9 +11,15 @@ use crate::{
     CryptoError, Result,
 };
 
-// Envelope format version. Bumped from v1 to v2 in the alpha polish burst
-// when the permutation MAC was added. v1 files cannot be decoded by v2 code.
-pub const FORMAT_VERSION: u8 = 2;
+// Envelope format version.
+// - v1: original (pre-alpha)
+// - v2: added the permutation MAC (alpha polish burst)
+// - v3: SALT_QUANT_STEP bumped from 16 to 256 (fixes 42.5% pHash-block drift
+//   across `image`-crate QF=85 recompression — see CHANGELOG v1.0.0); HKDF
+//   key separation strengthened to use independent extract calls per output
+//   key instead of disjoint info strings on a shared PRK (MINIMAX_AUDIT
+//   Finding 5). v1/v2 envelopes are NOT readable by v3 code.
+pub const FORMAT_VERSION: u8 = 3;
 
 const SERIALIZED_PREFIX_LEN: usize = 1 + 32 + 24 + MAC_LEN; // version + salt + nonce + mac
 

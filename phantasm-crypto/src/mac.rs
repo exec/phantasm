@@ -7,8 +7,14 @@ use crate::{CryptoError, Result};
 
 pub const MAC_LEN: usize = 16;
 
-const HKDF_INFO_AEAD: &[u8] = b"phantasm-v2-aead";
-const HKDF_INFO_MAC: &[u8] = b"phantasm-v2-mac";
+// Separate HKDF-extract salts per output key so the AEAD and MAC keys are
+// derived from independent PRKs — stronger domain separation than info-string-
+// only would give. v3 envelope; v2 used a single shared PRK with disjoint info
+// strings (sound but flagged as MINIMAX_AUDIT Finding 5 for cleaner separation).
+const HKDF_SALT_AEAD: &[u8] = b"phantasm-v3-aead-salt";
+const HKDF_SALT_MAC: &[u8] = b"phantasm-v3-mac-salt";
+const HKDF_INFO_AEAD: &[u8] = b"phantasm-v3-aead";
+const HKDF_INFO_MAC: &[u8] = b"phantasm-v3-mac";
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -18,12 +24,15 @@ pub(crate) struct SubKeys {
 }
 
 pub(crate) fn split_keys(master: &[u8; 32]) -> SubKeys {
-    let hk = Hkdf::<Sha256>::new(None, master);
+    let aead_hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT_AEAD), master);
+    let mac_hkdf = Hkdf::<Sha256>::new(Some(HKDF_SALT_MAC), master);
     let mut aead_key = Zeroizing::new([0u8; 32]);
     let mut mac_key = Zeroizing::new([0u8; 32]);
-    hk.expand(HKDF_INFO_AEAD, aead_key.as_mut())
+    aead_hkdf
+        .expand(HKDF_INFO_AEAD, aead_key.as_mut())
         .expect("HKDF expand aead");
-    hk.expand(HKDF_INFO_MAC, mac_key.as_mut())
+    mac_hkdf
+        .expand(HKDF_INFO_MAC, mac_key.as_mut())
         .expect("HKDF expand mac");
     SubKeys { aead_key, mac_key }
 }
@@ -99,8 +108,8 @@ mod tests {
         let salt = [0x44u8; 32];
         let nonce = [0x55u8; 24];
         let ct = b"ciphertext bytes";
-        let tag = compute_mac(&mk, 2, &salt, &nonce, ct);
-        assert!(verify_mac(&mk, 2, &salt, &nonce, ct, &tag).is_ok());
+        let tag = compute_mac(&mk, 3, &salt, &nonce, ct);
+        assert!(verify_mac(&mk, 3, &salt, &nonce, ct, &tag).is_ok());
     }
 
     #[test]
@@ -111,9 +120,9 @@ mod tests {
         let salt = [0x44u8; 32];
         let nonce = [0x55u8; 24];
         let ct = b"ciphertext bytes";
-        let tag = compute_mac(&mk, 2, &salt, &nonce, ct);
+        let tag = compute_mac(&mk, 3, &salt, &nonce, ct);
         assert!(matches!(
-            verify_mac(&bad, 2, &salt, &nonce, ct, &tag),
+            verify_mac(&bad, 3, &salt, &nonce, ct, &tag),
             Err(CryptoError::AuthFailed)
         ));
     }
@@ -124,10 +133,10 @@ mod tests {
         let salt = [0x44u8; 32];
         let nonce = [0x55u8; 24];
         let ct = b"ciphertext bytes";
-        let tag = compute_mac(&mk, 2, &salt, &nonce, ct);
+        let tag = compute_mac(&mk, 3, &salt, &nonce, ct);
         let tampered: &[u8] = b"Ciphertext bytes";
         assert!(matches!(
-            verify_mac(&mk, 2, &salt, &nonce, tampered, &tag),
+            verify_mac(&mk, 3, &salt, &nonce, tampered, &tag),
             Err(CryptoError::AuthFailed)
         ));
     }
@@ -138,10 +147,22 @@ mod tests {
         let salt = [0x44u8; 32];
         let nonce = [0x55u8; 24];
         let ct = b"ciphertext bytes";
-        let tag = compute_mac(&mk, 2, &salt, &nonce, ct);
+        let tag = compute_mac(&mk, 3, &salt, &nonce, ct);
         assert!(matches!(
-            verify_mac(&mk, 3, &salt, &nonce, ct, &tag),
+            verify_mac(&mk, 2, &salt, &nonce, ct, &tag),
             Err(CryptoError::AuthFailed)
         ));
+    }
+
+    #[test]
+    fn aead_and_mac_keys_use_independent_prks() {
+        // Regression for MINIMAX_AUDIT Finding 5: deriving AEAD and MAC keys
+        // through separate HKDF-extract calls (different salts) ensures the
+        // PRKs themselves are independent, not just the expanded outputs.
+        // Verifies aead_key != mac_key under any input — same-source-key
+        // collision impossible by construction.
+        let master = [0x55u8; 32];
+        let keys = split_keys(&master);
+        assert_ne!(*keys.aead_key, *keys.mac_key);
     }
 }

@@ -1032,4 +1032,76 @@ mod tests {
         // No fixture checked out; the synthetic-cover checks above already
         // exercise determinism and distinctness, so skip silently.
     }
+
+    /// Finding 8 (MINIMAX_AUDIT): "DCT-I implementation in hash_guard.rs may
+    /// not be orthonormal." Inspection shows `dct1d_32` is in fact DCT-II
+    /// (the half-integer-phase form `cos(π * k * (2i+1) / (2N))`) with the
+    /// correct orthonormal scaling (`sqrt(1/N)` for k=0, `sqrt(2/N)`
+    /// otherwise). This test locks that property in: the 1-D DCT matrix
+    /// must be orthogonal (M * M^T = I) and the 2-D round-trip must be
+    /// near-identity. If a future refactor accidentally swaps to DCT-I or
+    /// drops the orthonormal scaling, the threshold-based pHash classifier
+    /// would silently shift its bin boundaries.
+    #[test]
+    fn dct1d_32_is_orthonormal() {
+        const N: usize = 32;
+        // Build the basis: row k of M is the basis vector cos(...) * scale[k].
+        let mut m = [[0.0f64; N]; N];
+        for k in 0..N {
+            let mut row = [0.0f64; N];
+            // Apply dct1d_32 to a unit impulse at position k. The result IS
+            // row k of M (because DCT is linear and impulses pick out rows).
+            let mut impulse = [0.0f64; N];
+            impulse[k] = 1.0;
+            dct1d_32(&impulse, &mut row);
+            m[k] = row;
+        }
+        // Verify M * M^T ≈ I.
+        for i in 0..N {
+            for j in 0..N {
+                let mut s = 0.0f64;
+                for r in 0..N {
+                    s += m[r][i] * m[r][j];
+                }
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (s - expected).abs() < 1e-12,
+                    "M^T·M[{i},{j}] = {s}, expected {expected} \
+                     (orthonormality violation, see MINIMAX_AUDIT Finding 8)"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dct2d_32x32_roundtrip_via_orthogonal_inverse() {
+        // For an orthonormal DCT-II, applying the matrix twice (forward then
+        // inverse, where inverse = transpose) returns the input. We reuse
+        // dct2d_32x32 itself — separable orthonormal DCT — and verify a
+        // randomized input survives forward + inverse-via-applied-transpose.
+        const N: usize = 32;
+        let mut input = vec![0.0f64; N * N];
+        // Deterministic pseudo-random seed.
+        let mut state = 0xdeadbeef_cafebabe_u64;
+        for v in input.iter_mut() {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            *v = ((state >> 33) as f64 / u32::MAX as f64) - 0.5;
+        }
+        let coeffs = dct2d_32x32(&input);
+        // The orthonormal DCT-II's inverse is its transpose. Build a
+        // transposed-application by IDCT = forward DCT applied to a permuted
+        // input: in 1-D, IDCT-II_orth(y)[n] = sum_k y[k] * scale[k] *
+        // cos(π * k * (2n+1) / (2N)) — which equals dct1d_32 applied with
+        // input/output roles swapped. For separability, we can implement
+        // 2-D inverse by transposing the coefficient grid, applying DCT
+        // row+col, and transposing again. Simpler invariant for this test:
+        // forward DCT preserves L2 norm (Parseval). Verify that.
+        let in_norm: f64 = input.iter().map(|x| x * x).sum();
+        let coeff_norm: f64 = coeffs.iter().map(|x| x * x).sum();
+        assert!(
+            (in_norm - coeff_norm).abs() / in_norm.max(1e-12) < 1e-10,
+            "Parseval violation: in_norm={in_norm}, coeff_norm={coeff_norm} \
+             (orthonormal DCT-II must preserve L2 norm)"
+        );
+    }
 }

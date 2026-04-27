@@ -654,3 +654,155 @@ fn test_dl_extreme_values() {
     let extracted = dec.extract(&stego, total_bits);
     assert_eq!(extracted, message, "DL extreme values roundtrip failed");
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Audit follow-throughs (v1)
+// ────────────────────────────────────────────────────────────────────────────
+
+// Finding 6 (MINIMAX_AUDIT): "double-layer encoder embeds m2 at head positions
+// — constraint compatibility with m1 embedding is implicit." Audit recommends
+// "a property-based test that embeds with layer-2 costs and verifies the
+// extracted m2 bits exactly equal the embedded m2 bits across a diverse
+// cover corpus." This test sweeps 200 seeds with random ternary costs and
+// random covers, including an asymmetric-layer-2-dominant variant where
+// costs are biased to make layer-2 modifications relatively cheaper, which
+// stresses the head/tail coupling between layer-1 and layer-2 plane bits.
+#[test]
+fn test_dl_property_m2_roundtrip_diverse_corpus() {
+    let n = 4096;
+    let total_bits = valid_total_bits_for(n, 512);
+    let m1_bits = total_bits.div_ceil(2);
+    let m2_bits = total_bits - m1_bits;
+
+    let enc = make_dl_encoder(10);
+    let dec = make_dl_decoder(10);
+
+    // Sweep 200 seeds across two cost regimes: symmetric and layer-2-dominant.
+    for variant in 0..2u8 {
+        for seed in 0u64..100 {
+            let mut rng = StdRng::seed_from_u64(seed * 31 + variant as u64 * 31337);
+            let cover = random_dct_cover(&mut rng, n);
+            let (cp, cm) = match variant {
+                0 => random_ternary_costs(&mut rng, n),
+                1 => {
+                    // Layer-2-dominant: costs biased low at the head positions
+                    // (layer-2 carrier) and high elsewhere. Forces the encoder
+                    // to thread layer-2 modifications through head positions
+                    // that also constrain layer-1, exercising the coupling.
+                    let mut cp = vec![0.0f64; n];
+                    let mut cm = vec![0.0f64; n];
+                    for i in 0..n {
+                        let head_region = i < n / 4;
+                        if head_region {
+                            cp[i] = rng.gen_range(0.001f64..0.05);
+                            cm[i] = rng.gen_range(0.001f64..0.05);
+                        } else {
+                            cp[i] = rng.gen_range(0.5f64..1.0);
+                            cm[i] = rng.gen_range(0.5f64..1.0);
+                        }
+                    }
+                    (cp, cm)
+                }
+                _ => unreachable!(),
+            };
+            let message: Vec<u8> = (0..total_bits).map(|_| rng.gen_range(0u8..=1)).collect();
+
+            let stego = enc.embed(&cover, &cp, &cm, &message).unwrap();
+            let extracted = dec.extract(&stego, total_bits);
+
+            // The audit's specific concern: m2 bits are embedded at head
+            // positions and could in principle be corrupted by layer-1
+            // embedding constraints. Verify each half independently as well
+            // as the concatenation — if the coupling were broken, m2 would
+            // mismatch even if the prefix m1 looked fine.
+            assert_eq!(
+                extracted[..m1_bits],
+                message[..m1_bits],
+                "m1 mismatch at variant={variant} seed={seed}"
+            );
+            assert_eq!(
+                extracted[m1_bits..m1_bits + m2_bits],
+                message[m1_bits..m1_bits + m2_bits],
+                "m2 mismatch at variant={variant} seed={seed} \
+                 (regression for MINIMAX_AUDIT Finding 6: head/tail coupling)"
+            );
+        }
+    }
+}
+
+// Finding 10 (MINIMAX_AUDIT): "PRNG fallback in `htilde_for_rate` has not
+// been tested against DDE Lab reference." The fallback is reached when (h, w)
+// falls outside the published table range (h ∉ [7,12] or w ∉ [2,20]). This
+// test exercises the fallback at several (h, w) combinations and verifies
+// the produced H̃ matrix has the structural properties the STC trellis
+// expects: every column non-zero, every column within the h-bit mask, and
+// the top/bottom bits forced per common.cpp:152.
+//
+// We deliberately do NOT assert full GF(2) rank here. The fallback's rank-
+// completion path is best-effort and may under-shoot for some (h, w)
+// outside the table; STC operates exclusively in h ∈ [7, 12] in production
+// (DDE Lab range) so the structural-invariant guarantee is what's
+// load-bearing, not full-rank under all extrapolations.
+#[test]
+fn test_htilde_prng_fallback_structural_properties() {
+    use crate::parity::htilde_for_rate;
+
+    let cases = [
+        (5u8, 4usize), // h below table
+        (6, 10),       // h below table, larger w
+        (13, 5),       // h above table
+        (15, 8),       // h well above table
+        (8, 25),       // h in range, w above table
+        (10, 30),      // h in range, w well above table
+        (3, 3),        // small h
+        (20, 15),      // larger h
+    ];
+
+    for (h, w) in cases {
+        let cols = htilde_for_rate(h, w);
+        assert_eq!(cols.len(), w, "h={h} w={w}: wrong column count");
+
+        let mask = if h as usize == 64 {
+            u64::MAX
+        } else {
+            (1u64 << h) - 1
+        };
+        let top_bit = 1u64 << (h as usize - 1);
+        let bottom_bit = 1u64;
+
+        for (j, &c) in cols.iter().enumerate() {
+            assert_ne!(c, 0, "h={h} w={w}: column {j} is zero (forbidden)");
+            assert_eq!(
+                c & !mask,
+                0,
+                "h={h} w={w}: column {j} has bits above row {}",
+                h as usize - 1
+            );
+            assert_ne!(
+                c & top_bit,
+                0,
+                "h={h} w={w}: column {j} missing forced top bit"
+            );
+            assert_ne!(
+                c & bottom_bit,
+                0,
+                "h={h} w={w}: column {j} missing forced bottom bit"
+            );
+        }
+    }
+}
+
+// Finding 10 sanity: the PRNG fallback is deterministic — same (h, w) input
+// always produces the same column vector (load-bearing because h and w come
+// from per-cover capacity decisions, and embed-side and extract-side must
+// produce identical H̃ matrices on every cover).
+#[test]
+fn test_htilde_prng_fallback_deterministic() {
+    use crate::parity::htilde_for_rate;
+
+    for &(h, w) in &[(5u8, 4usize), (15, 8), (10, 30)] {
+        let a = htilde_for_rate(h, w);
+        let b = htilde_for_rate(h, w);
+        assert_eq!(a, b, "fallback h={h} w={w} not deterministic");
+    }
+}
