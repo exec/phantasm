@@ -6,7 +6,6 @@ pub mod minimal;
 pub mod orchestrator;
 #[doc(hidden)]
 pub mod pipeline;
-pub mod pipeline_spatial;
 pub mod plan;
 #[doc(hidden)]
 pub mod research_raw;
@@ -21,7 +20,6 @@ pub use orchestrator::{
     ChannelCompatibility, CoverAnalysis, CoverFormat, EmbedResult, Orchestrator, StubOrchestrator,
 };
 pub use phantasm_channel::{ChannelAdapter, StabilizationReport, TwitterProfile};
-pub use pipeline_spatial::SpatialCost;
 pub use plan::{EmbedPlan, HashSensitivity};
 pub use stealth::StealthTier;
 

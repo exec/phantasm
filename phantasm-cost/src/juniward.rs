@@ -379,7 +379,7 @@ impl DistortionFunction for Juniward {
                 let y0 = br * 8;
                 let x0 = bc * 8;
 
-                // Emit costs in zigzag order to match Uerd / Uniform.
+                // Emit costs in zigzag order to match the CostMap convention.
                 for zz in 1..64usize {
                     let nat = ZIGZAG[zz];
                     let i = nat / 8;

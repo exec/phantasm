@@ -7,7 +7,6 @@ members = [
     "phantasm-ecc",
     "phantasm-core",
     "phantasm-cli",
-    "phantasm-bench",
     "phantasm-cost",
     "phantasm-channel",
 ]

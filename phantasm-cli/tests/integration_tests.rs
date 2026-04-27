@@ -85,15 +85,14 @@ fn roundtrip_with_cost_function(cost_function_flag: Option<&str>) {
 }
 
 #[test]
-fn test_embed_help_documents_cost_function_and_default_uerd() {
+fn test_embed_help_documents_cost_function_and_default_juniward() {
     let mut cmd = Command::cargo_bin("phantasm").unwrap();
     cmd.arg("embed").arg("--help");
     let assert = cmd.assert().success();
     assert
         .stdout(predicate::str::contains("--cost-function"))
-        .stdout(predicate::str::contains("uniform"))
-        .stdout(predicate::str::contains("uerd"))
-        .stdout(predicate::str::contains("[default: uerd]"));
+        .stdout(predicate::str::contains("j-uniward"))
+        .stdout(predicate::str::contains("[default: j-uniward]"));
 }
 
 #[test]
@@ -128,13 +127,8 @@ fn test_embed_roundtrip_cost_function_uniform() {
 }
 
 #[test]
-fn test_embed_roundtrip_cost_function_uerd() {
-    roundtrip_with_cost_function(Some("uerd"));
-}
-
-#[test]
-fn test_embed_roundtrip_default_is_uerd() {
-    // Round-trip when --cost-function is omitted. The default is uerd;
+fn test_embed_roundtrip_default_is_juniward() {
+    // Round-trip when --cost-function is omitted. The default is j-uniward;
     // the help-text test above locks in that guarantee.
     roundtrip_with_cost_function(None);
 }
@@ -154,8 +148,7 @@ fn test_help_lists_all_subcommands() {
         .stdout(predicate::str::contains("embed"))
         .stdout(predicate::str::contains("extract"))
         .stdout(predicate::str::contains("analyze"))
-        .stdout(predicate::str::contains("channels"))
-        .stdout(predicate::str::contains("bench"));
+        .stdout(predicate::str::contains("channels"));
 }
 
 #[test]
@@ -309,7 +302,7 @@ fn roundtrip_with_hooks(
         .arg("--output")
         .arg(&stego)
         .arg("--cost-function")
-        .arg("uerd")
+        .arg("j-uniward")
         .arg("--channel-adapter")
         .arg(channel_adapter)
         .arg("--hash-guard")
@@ -424,26 +417,6 @@ fn test_analyze_reports_sensitivity_tier() {
     assert
         .stdout(predicate::str::contains("Sensitivity tier:"))
         .stdout(predicate::str::contains("Hash-guard (pHash)"));
-}
-
-#[test]
-fn test_bench_prints_stub_message() {
-    let tmp = tempdir().unwrap();
-    let cover = tmp.path().join("cover");
-    let stego = tmp.path().join("stego");
-
-    fs::create_dir(&cover).unwrap();
-    fs::create_dir(&stego).unwrap();
-
-    let mut cmd = Command::cargo_bin("phantasm").unwrap();
-    cmd.arg("bench")
-        .arg("--cover-dir")
-        .arg(&cover)
-        .arg("--stego-dir")
-        .arg(&stego);
-
-    let assert = cmd.assert().success();
-    assert.stdout(predicate::str::contains("phantasm-bench"));
 }
 
 // ---- QWEN_AUDIT findings 1+2: secure passphrase input ---------------------

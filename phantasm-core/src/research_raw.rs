@@ -262,7 +262,7 @@ fn clone_coefficients(src: &JpegCoefficients) -> JpegCoefficients {
 mod tests {
     use super::*;
     use image::{ImageBuffer, Rgb};
-    use phantasm_cost::{Uerd, Uniform};
+    use phantasm_cost::{Juniward, Uniform};
     use phantasm_image::jpeg;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -319,9 +319,9 @@ mod tests {
     }
 
     #[test]
-    fn round_trip_uerd_1000_bits() {
+    fn round_trip_juniward_1000_bits() {
         let cover = load_test_cover((128, 128));
-        let cost_fn = Uerd;
+        let cost_fn = Juniward;
         let seed = 7;
         let res = research_raw_embed(&cover, &cost_fn, 1000, seed).expect("embed");
         assert_eq!(res.message_bits.len(), 1000);
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn deterministic_same_seed() {
         let cover = load_test_cover((128, 128));
-        let cost_fn = Uerd;
+        let cost_fn = Juniward;
         let a = research_raw_embed(&cover, &cost_fn, 500, 99).expect("embed a");
         let b = research_raw_embed(&cover, &cost_fn, 500, 99).expect("embed b");
         assert_eq!(a.message_bits, b.message_bits);

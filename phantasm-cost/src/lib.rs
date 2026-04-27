@@ -4,30 +4,18 @@
 //! embedding costs. Lower cost at position `i` means "safer to modify coefficient `i`"
 //! — the STC coder uses these costs to minimize total detectability for a fixed payload.
 //!
-//! Implementations in this crate follow published academic distortion functions:
+//! Phantasm v1 ships [`juniward::Juniward`] (Holub & Fridrich 2014) — wavelet-domain
+//! relative-distortion cost, the academic baseline for content-adaptive JPEG
+//! steganography and the cost function with the strongest measured evasion against
+//! off-the-shelf modern CNN steganalyzers in our evaluation.
 //!
-//! - [`uerd::Uerd`] — Uniform Embedding Revisited Distortion (Guo, Ni, Shi 2015).
-//!   JPEG-native, block-complexity-driven. Simpler than UNIWARD and competitive
-//!   on security benchmarks.
-//! - [`juniward::Juniward`] — J-UNIWARD (Holub & Fridrich 2014). Wavelet-domain
-//!   relative-distortion cost, the academic baseline for content-adaptive
-//!   JPEG steganography.
-//!
-//! Future implementations may include J-MiPOD (Cogranne, Giboulot, Bas 2020),
-//! HILL, etc.
+//! [`sidecar::Sidecar`] consumes external PHCOST cost-map files; it is hidden from
+//! the public CLI and reserved for research / experimental defenses.
 
 pub mod juniward;
-pub mod noisy;
-pub mod passphrase_subset;
-pub mod s_uniward;
 pub mod sidecar;
-pub mod uerd;
 pub use juniward::Juniward;
-pub use noisy::{Noisy, MAX_NOISE_AMPLITUDE};
-pub use passphrase_subset::{PassphraseSubset, MIN_KEEP_FRACTION};
-pub use s_uniward::SUniward;
 pub use sidecar::Sidecar;
-pub use uerd::Uerd;
 
 use phantasm_image::jpeg::JpegCoefficients;
 
@@ -75,17 +63,14 @@ pub trait DistortionFunction: Send + Sync {
     fn compute(&self, jpeg: &JpegCoefficients, component_idx: usize) -> CostMap;
 
     /// Human-readable name for logging, reporting, and benchmark output.
-    /// Examples: `"uerd"`, `"j-uniward"`, `"j-mipod"`, `"uniform"`.
+    /// Examples: `"j-uniward"`, `"uniform"`.
     fn name(&self) -> &str;
 }
 
 /// A trivial uniform-cost distortion function that assigns cost 1.0 to every
-/// non-DC coefficient. This is the baseline that `MinimalOrchestrator` uses
-/// implicitly; exposing it here lets `ContentAdaptiveOrchestrator` use it
-/// as a drop-in replacement for testing.
-///
-/// Not content-adaptive. Detectable by classical RS attack (Fridrich 2001).
-/// Use a real distortion function like `Uerd` for anything that needs stealth.
+/// non-DC coefficient. Baseline / diagnostic only; not content-adaptive and
+/// detectable by classical RS attack (Fridrich 2001). Use [`Juniward`] for
+/// anything that needs stealth.
 pub struct Uniform;
 
 impl DistortionFunction for Uniform {

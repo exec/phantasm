@@ -19,8 +19,8 @@
 //! ```
 //!
 //! DC coefficients (dct_pos == 0) are skipped when building the CostMap, to
-//! match the convention used by [`super::Uniform`], [`super::Uerd`], and
-//! [`super::Juniward`].
+//! match the convention used by [`super::Juniward`] and the in-tree `Uniform`
+//! baseline.
 
 use crate::{CostMap, DistortionFunction};
 use phantasm_image::jpeg::JpegCoefficients;

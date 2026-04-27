@@ -1,19 +1,11 @@
 use anyhow::Result;
 use std::path::Path;
 
-use phantasm_core::pipeline_spatial;
 use phantasm_core::{ChannelAdapter, ContentAdaptiveOrchestrator, Orchestrator, TwitterProfile};
 use phantasm_cost::Uniform;
 
 use crate::commands::passphrase::PassphraseSource;
 use crate::{ChannelAdapterChoice, HashGuardChoice};
-
-fn is_png_path(path: &Path) -> bool {
-    path.extension()
-        .and_then(|s| s.to_str())
-        .map(|e| e.eq_ignore_ascii_case("png"))
-        .unwrap_or(false)
-}
 
 pub fn run(
     input: &Path,
@@ -36,27 +28,35 @@ pub fn run(
         );
     }
 
+    if input
+        .extension()
+        .and_then(|s| s.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("png"))
+    {
+        anyhow::bail!(
+            "PNG covers are not supported in phantasm v1 (JPEG only). \
+             Stegos produced by older PNG-mode versions of phantasm are not \
+             extractable with this build."
+        );
+    }
+
     let passphrase_str = passphrase.resolve()?;
 
-    let payload = if is_png_path(input) {
-        pipeline_spatial::extract_png(input, &passphrase_str)?
-    } else {
-        // STC decoding is passphrase-keyed and does not consult the cost
-        // function, so any distortion works for the extract side. The
-        // `--channel-adapter` flag selects the ECC framing route (lossy-path
-        // stegos wrap the envelope in Reed-Solomon before STC) and must match
-        // the embed side; `--hash-guard` is a pure embed-time switch that
-        // leaves no trace in the stego.
-        let mut orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
-        match channel_adapter {
-            ChannelAdapterChoice::None => {}
-            ChannelAdapterChoice::Twitter => {
-                let adapter: Box<dyn ChannelAdapter> = Box::new(TwitterProfile::default());
-                orchestrator = orchestrator.with_channel_adapter(adapter);
-            }
+    // STC decoding is passphrase-keyed and does not consult the cost
+    // function, so any distortion works for the extract side. The
+    // `--channel-adapter` flag selects the ECC framing route (lossy-path
+    // stegos wrap the envelope in Reed-Solomon before STC) and must match
+    // the embed side; `--hash-guard` is a pure embed-time switch that
+    // leaves no trace in the stego.
+    let mut orchestrator = ContentAdaptiveOrchestrator::new(Box::new(Uniform));
+    match channel_adapter {
+        ChannelAdapterChoice::None => {}
+        ChannelAdapterChoice::Twitter => {
+            let adapter: Box<dyn ChannelAdapter> = Box::new(TwitterProfile::default());
+            orchestrator = orchestrator.with_channel_adapter(adapter);
         }
-        orchestrator.extract(input, &passphrase_str)?
-    };
+    }
+    let payload = orchestrator.extract(input, &passphrase_str)?;
 
     std::fs::write(output, &payload)?;
 

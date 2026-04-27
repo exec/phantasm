@@ -5,14 +5,11 @@ use std::path::PathBuf;
 mod commands;
 mod logger;
 
-use commands::{
-    analyze, bench, channels, dump_costs, embed, extract, passphrase::PassphraseSource,
-};
+use commands::{analyze, channels, dump_costs, embed, extract, passphrase::PassphraseSource};
 
 #[derive(Parser)]
 #[command(name = "phantasm")]
-#[command(version = "0.1.0")]
-#[command(about = "Phantasm — compression-resilient image steganography")]
+#[command(version, about = "Phantasm — content-adaptive JPEG steganography")]
 #[command(long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -64,17 +61,14 @@ enum Commands {
         #[arg(long, default_value = "high")]
         stealth: StealthChoice,
 
-        /// Content-adaptive distortion function used to compute per-coefficient
-        /// embedding costs. Choices: `uniform`, `uerd`, `j-uniward`. The right
-        /// choice is threat-model dependent. `uerd` (default) wins against
-        /// classical statistical detectors (Fridrich RS, SRM-lite) and is
-        /// substantially harder to detect than `uniform` on the same. `j-uniward`
-        /// (Holub & Fridrich 2014, wavelet-domain) wins against modern CNN
-        /// steganalysis: at typical payloads against the JIN-SRNet and
-        /// Aletheia EfficientNet-B0 pretrained detectors, J-UNIWARD scores
-        /// statistically indistinguishable from cover. For a modern threat
-        /// model (deep-learning adversary), use `j-uniward`. See ML_STEGANALYSIS.md.
-        #[arg(long, default_value = "uerd")]
+        /// Content-adaptive distortion function. `j-uniward` (Holub & Fridrich
+        /// 2014, wavelet-domain) is the default and only publicly-supported
+        /// cost function in v1: at typical payloads against the JIN-SRNet
+        /// pretrained detector it measures detection rates near the cover
+        /// false-positive floor on our evaluation corpus. `uniform` is a
+        /// research/diagnostic baseline (no content adaptivity) and is hidden
+        /// from `--help`.
+        #[arg(long, default_value = "j-uniward")]
         cost_function: CostFunctionChoice,
 
         /// Path to a per-coefficient cost-map sidecar file produced by an
@@ -82,26 +76,6 @@ enum Commands {
         /// `--cost-function from-sidecar`. Hidden from `--help`; research path.
         #[arg(long, hide = true)]
         cost_sidecar: Option<PathBuf>,
-
-        /// Passphrase-randomized multiplicative cost-noise amplitude. `0.0`
-        /// (default) is identity (current behavior). `0.25`–`1.0` is the
-        /// sweet-spot range for fragmenting an attacker's training
-        /// distribution without breaking the underlying cost-function's
-        /// natural distribution. Values above `2.0` are clamped and warn.
-        /// See ML_STEGANALYSIS.md § Update 5. Hidden from `--help`.
-        #[arg(long, hide = true, default_value = "0.0")]
-        cost_noise: f64,
-
-        /// Passphrase-derived candidate-position keep fraction in [0.0, 1.0].
-        /// `1.0` (default) keeps all positions (current behavior). `0.5` marks
-        /// 50% of non-DC positions as wet (forbidden for STC) per-passphrase,
-        /// with the wet mask deterministically derived from the passphrase.
-        /// Different passphrases mark different subsets, fragmenting the
-        /// candidate-position distribution at the level a CNN steganalyzer
-        /// learns. Reduces effective embed capacity by `(1 - keep_fraction)`.
-        /// See ML_STEGANALYSIS.md § Update 6. Hidden from `--help`.
-        #[arg(long, hide = true, default_value = "1.0")]
-        cost_subset: f64,
 
         /// Channel stabilization profile. `none` (default) preserves pre-v0.1.0-alpha
         /// behavior. `twitter` enables MINICER+ROAST stabilization at a ~10-20%
@@ -196,21 +170,6 @@ enum Commands {
         #[arg(long, default_value = "j-uniward")]
         cost_function: CostFunctionChoice,
     },
-
-    /// Run steganalysis self-test (requires phantasm-bench crate)
-    Bench {
-        /// Directory of cover images
-        #[arg(long)]
-        cover_dir: PathBuf,
-
-        /// Directory for stego output
-        #[arg(long)]
-        stego_dir: PathBuf,
-
-        /// Output results to file
-        #[arg(long)]
-        output: Option<PathBuf>,
-    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -245,8 +204,9 @@ impl std::fmt::Display for ChannelChoice {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum CostFunctionChoice {
+    /// Hidden research/diagnostic baseline — uniform cost, no content adaptivity.
+    #[value(hide = true)]
     Uniform,
-    Uerd,
     #[value(name = "j-uniward")]
     Juniward,
     /// Hidden — research path. Loads per-coefficient costs from a sidecar file
@@ -260,7 +220,6 @@ impl std::fmt::Display for CostFunctionChoice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Uniform => write!(f, "uniform"),
-            Self::Uerd => write!(f, "uerd"),
             Self::Juniward => write!(f, "j-uniward"),
             Self::FromSidecar => write!(f, "from-sidecar"),
         }
@@ -329,7 +288,7 @@ fn main() -> Result<()> {
 
     // Print banner unless quiet
     if !cli.quiet {
-        eprintln!("phantasm 0.4.0 — research-grade");
+        eprintln!("phantasm {}", env!("CARGO_PKG_VERSION"));
     }
 
     // Dispatch to subcommand
@@ -345,8 +304,6 @@ fn main() -> Result<()> {
             stealth,
             cost_function,
             cost_sidecar,
-            cost_noise,
-            cost_subset,
             channel_adapter,
             hash_guard,
             layer,
@@ -363,8 +320,6 @@ fn main() -> Result<()> {
             stealth: *stealth,
             cost_function: *cost_function,
             cost_sidecar: cost_sidecar.as_deref(),
-            cost_noise: *cost_noise,
-            cost_subset: *cost_subset,
             channel_adapter: *channel_adapter,
             hash_guard: *hash_guard,
             layer,
@@ -401,12 +356,6 @@ fn main() -> Result<()> {
         }
 
         Commands::Channels { json } => channels::run(*json)?,
-
-        Commands::Bench {
-            cover_dir,
-            stego_dir,
-            output,
-        } => bench::run(cover_dir, stego_dir, output)?,
     }
 
     Ok(())

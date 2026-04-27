@@ -8,7 +8,7 @@
 //! the existing distortion functions are symmetric in the modification direction).
 
 use anyhow::{Context, Result};
-use phantasm_cost::{DistortionFunction, Juniward, Uerd, Uniform};
+use phantasm_cost::{DistortionFunction, Juniward, Uniform};
 use phantasm_image::jpeg;
 use std::path::Path;
 
@@ -23,7 +23,6 @@ pub fn run(input: &Path, output: &Path, cost_function: CostFunctionChoice) -> Re
 
     let distortion: Box<dyn DistortionFunction> = match cost_function {
         CostFunctionChoice::Uniform => Box::new(Uniform),
-        CostFunctionChoice::Uerd => Box::new(Uerd),
         CostFunctionChoice::Juniward => Box::new(Juniward),
         CostFunctionChoice::FromSidecar => {
             anyhow::bail!("dump-costs cannot dump from-sidecar (no underlying cost function)")

@@ -197,36 +197,8 @@ fn jpeg_quality_estimate_sanity() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 5: PNG round-trip
 // ---------------------------------------------------------------------------
-
-#[test]
-fn png_roundtrip() {
-    use phantasm_image::png::{self, PngColor, PngImage};
-
-    let width = 64u32;
-    let height = 64u32;
-    let pixels: Vec<u8> = gradient_rgb(width, height);
-
-    let tmp = NamedTempFile::with_suffix(".png").unwrap();
-    let path = tmp.path().to_path_buf();
-
-    let img = PngImage {
-        width,
-        height,
-        pixels: pixels.clone(),
-        color: PngColor::Rgb8,
-    };
-    png::write(&img, &path).unwrap();
-
-    let loaded = png::read(&path).unwrap();
-    assert_eq!(loaded.width, width);
-    assert_eq!(loaded.height, height);
-    assert_eq!(loaded.pixels, pixels);
-}
-
-// ---------------------------------------------------------------------------
-// Test 6: DCT identity
+// Test 5: DCT identity
 // ---------------------------------------------------------------------------
 
 #[test]
