@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-04-25
+
+**Phantasm v1: focused, JPEG-only, J-UNIWARD-only steganography with a clearly-scoped threat model.** Confidentiality of a payload an adversary can see exists. NOT plausible deniability against a phantasm-aware CNN. The "research-grade" self-ID is dropped; v1 owns its scope and stakes its security claim on the L2/L3 cryptographic envelope.
+
+### Breaking changes
+
+- **Envelope `FORMAT_VERSION` 2 → 3.** v0.x stegos cannot be extracted by v1 and vice versa. The bump rolls up two correctness improvements that aren't safely backward-compatible:
+  - `SALT_QUANT_STEP` 16 → 256 (closes a 42.5% pHash-block drift bug discovered via v0.4 diagnostic tooling). Salt is image-derived and not stored in the envelope, so changing the quantization step is a stego-breaking change.
+  - HKDF key separation: AEAD and MAC keys now derive from two **independent** HKDF-extract calls (separate salts: `phantasm-v3-aead-salt`, `phantasm-v3-mac-salt`) instead of disjoint info strings on a shared PRK. Closes MINIMAX_AUDIT Finding 5. Info strings also bumped to v3.
+- **`--cost-function uerd` removed.** UERD wins against classical Fridrich RS (the v0.1.0 era headline number) but loses to J-UNIWARD against modern CNN steganalysis (16.2% vs 46.5% on JIN-SRNet at typical payload). v1 commits to the modern threat model.
+- **Embed default `--cost-function` switched to `j-uniward`.** Was `uerd` since v0.1.0; the v0.2 ML-steganalysis evaluation flagged this as the wrong default for a modern threat model and the change has been deferred until v1.
+- **`--cost-noise` removed.** Update 5 (passphrase-randomized cost-noise) closed negatively against phantasm-aware CNN attackers. Hidden research flag, no measured benefit.
+- **`--cost-subset` removed.** Update 6 (passphrase-derived position subset) closed mixed against phantasm-aware CNN attackers and produced a 23% embed-failure rate at the recommended setting. Hidden research flag.
+- **PNG support removed.** The v0.3 PNG / S-UNIWARD spatial-domain MVP is dropped from v1. PNG steganalysis is a different threat model and v1 doesn't try to serve both. PNG covers passed to `phantasm embed` or `phantasm extract` now error cleanly with `"PNG covers are not supported in phantasm v1 (JPEG only)"`.
+- **`phantasm bench` subcommand removed.** The standalone `phantasm-bench` research-evaluation crate is preserved on the `research/phantasm-bench-archive` branch from v0.4.0.
+- **`Uniform` cost-function variant hidden** from `--help`. Still reachable via `--cost-function uniform` for research/diagnostic comparisons.
+
+### Added
+
+- **`phantasm-stc` audit follow-through tests** for MINIMAX_AUDIT findings:
+  - Finding 6 (double-layer head/tail coupling): property-based test sweeping 200 seeds across symmetric and layer-2-dominant cost regimes, asserting m1 and m2 round-trip independently.
+  - Finding 10 (PRNG fallback in `htilde_for_rate`): structural-properties test (column non-zero, mask conformance, top/bottom-bit-forced) at 8 `(h, w)` combinations outside the DDE Lab table range, plus a determinism test.
+- **`phantasm-core::hash_guard` DCT orthonormality test** for MINIMAX_AUDIT Finding 8: verifies the 1-D DCT matrix is orthogonal (M·M^T = I within 1e-12) and the 2-D DCT preserves L2 norm (Parseval). Confirms `dct1d_32` is correctly DCT-II (not DCT-I as the audit speculated) and locks the property in.
+- **`phantasm-crypto::mac` independent-PRK test**: regression for Finding 5 verifying AEAD and MAC keys are non-equal under any input by construction.
+- **`audits/` directory** with `MINIMAX_AUDIT.md`, `QWEN_AUDIT.md`, `QWEN_AUDIT_RE_MINIMAX.md`, and a `README.md` summary.
+- **`archive/` directory** with `PLAN.md`, `RESEARCH.md`, `ML_STEGANALYSIS.md` and a `README.md` summary. These pre-v1 documents reference scope and threat models that v1 doesn't commit to; preserved for historical record.
+
+### Changed
+
+- **`README.md` rewritten for v1**: drops the PNG mention, leads with the JPEG-only / J-UNIWARD-only / scoped-threat-model framing, surfaces the 16.2%-on-JIN-SRNet headline number with all caveats prominently, includes a "what v1 cuts" section.
+- **`STATUS.md` rewritten for v1**: compressed historical narrative; current state focused on v1 ship state, audit follow-through table, known limitations.
+- **CLI banner self-ID** now uses `CARGO_PKG_VERSION` (e.g. `phantasm 1.0.0`) instead of the hardcoded `phantasm 0.X.Y — research-grade` string.
+
+### Removed (code surface, ~9k LOC)
+
+- `phantasm-cost::{uerd, s_uniward, noisy, passphrase_subset}` modules
+- `phantasm-image::png` module
+- `phantasm-core::pipeline_spatial` module + `tests/spatial_integration.rs`
+- `phantasm-core/examples/compare_cost_functions.rs`
+- `phantasm-bench` crate (entire workspace member; preserved on `research/phantasm-bench-archive` branch from v0.4.0)
+- `phantasm-cli` `bench`, `--cost-noise`, `--cost-subset`, `Uerd` variant
+
+### Security
+
+- Audit follow-throughs land (Findings 5, 6, 8, 10 all closed). Finding 11 (PNG decoder dead code) is closed as a side-effect of PNG removal.
+- **No external commercial security review has been commissioned.** v1 ships explicitly as audit-grade, not assurance-grade.
+
+### Tests
+
+- 280 (v0.4.0) → 204 (v1.0.0) passing. Reduction is from deleted code surface (UERD/PNG/noisy/passphrase_subset/phantasm-bench tests). +5 audit follow-through tests added (m1/m2 property test, DCT orthonormality, Parseval, PRNG fallback structural-properties, PRNG fallback determinism, independent-PRK regression).
+
 ## [0.4.0] — 2026-04-25
 
 Plumbing release for the lossy-channel rewrite arc and a wet-paper sidecar correctness fix. **No breaking changes** to v0.3.0's envelope format (still v2), the CLI surface, or default behavior on existing flags. `phantasm 0.4.0 — research-grade` self-identifies. Default-config embed/extract output is byte-identical to v0.3.0; the new surface is opt-in env knobs and bench probes.

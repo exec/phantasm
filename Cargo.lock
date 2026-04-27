@@ -1624,7 +1624,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phantasm-channel"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "image 0.24.9",
  "phantasm-cost",
@@ -1635,7 +1635,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-cli"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1653,7 +1653,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-core"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "image 0.25.10",
  "log",
@@ -1672,7 +1672,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-cost"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "image 0.24.9",
  "phantasm-image",
@@ -1683,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-crypto"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "argon2",
  "chacha20poly1305",
@@ -1698,7 +1698,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-ecc"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "rand 0.8.5",
  "reed-solomon-erasure",
@@ -1707,7 +1707,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-image"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "image 0.24.9",
  "libc",
@@ -1722,7 +1722,7 @@ dependencies = [
 
 [[package]]
 name = "phantasm-stc"
-version = "0.4.0"
+version = "1.0.0"
 dependencies = [
  "rand 0.8.5",
  "thiserror 1.0.69",
